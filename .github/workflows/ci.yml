@@ -49,11 +49,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # - name: Lint
-      #   run: npm run lint
+      - name: Lint
+        run: npm run lint
 
-      # - name: Test
-      #   run: npm test -- --passWithNoTests
+      - name: Test
+        run: npm test -- --passWithNoTests
 
   web:
     name: Web (Vite + React)
@@ -74,8 +74,14 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Lint
+        run: npm run lint
+
       - name: Build
         run: npm run build
+
+      - name: Test
+        run: npm test -- --run
 
   # This job aggregates the others so we can enforce a single "CI" status check
   CI:
