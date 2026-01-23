@@ -1,0 +1,25 @@
+{
+  "name": "@proof-of-personhood/contracts",
+  "version": "1.0.0",
+  "description": "EVM Smart Contracts for Proof of Personhood on Polkadot Asset Hub using Revive compiler",
+  "scripts": {
+    "build": "forge build",
+    "test": "forge test",
+    "lint": "forge fmt --check",
+    "format": "forge fmt",
+    "clean": "forge clean"
+  },
+  "devDependencies": {
+    "forge-std": "^1.8.2",
+    "openzeppelin-contracts": "^5.0.0"
+  },
+  "keywords": [
+    "solidity",
+    "polkadot",
+    "evm",
+    "revive",
+    "smart-contracts",
+    "proof-of-personhood"
+  ],
+  "license": "MIT"
+}
