@@ -1,73 +1,66 @@
-# Contracts
+## Foundry
 
-EVM Smart Contracts for Proof of Personhood on Polkadot Asset Hub.
+**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
 
-## Tech Stack
+Foundry consists of:
 
-- **Solidity**: ^0.8.23
-- **Foundry**: Development framework
-- **Revive Compiler**: Polkadot Asset Hub compatible EVM compiler
-- **OpenZeppelin**: Security-audited contract library
+- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
+- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
+- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
+- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
 
-## Architecture
+## Documentation
 
-### Revive Compiler
+https://book.getfoundry.sh/
 
-Polkadot Asset Hub uses EVM+ with the Revive compiler, which provides:
-
-- EVM compatibility for Solidity smart contracts
-- Full support for standard Solidity features
-- Optimized gas usage for Polkadot's parachain architecture
-- Seamless integration with Polkadot's cross-chain messaging (XCM)
-
-### Contract Structure
-
-```
-src/
-├── ProofOfPersonhood.sol    # Core attestations contract
-test/
-├── ProofOfPersonhood.t.sol   # Test suite
-script/
-└── Deploy.s.sol              # Deployment scripts
-```
-
-## Development
-
-### Install Foundry
-
-```bash
-curl -L https://foundry.paradigm.xyz | bash
-foundryup
-```
-
-### Install Dependencies
-
-```bash
-forge install
-```
+## Usage
 
 ### Build
 
-```bash
-forge build
+```shell
+$ forge build
 ```
 
 ### Test
 
-```bash
-forge test
+```shell
+$ forge test
 ```
 
 ### Format
 
-```bash
-forge fmt
+```shell
+$ forge fmt
 ```
 
-## Deployment
+### Gas Snapshots
 
-Deploy to Polkadot Asset Hub using the configured RPC endpoints in `Foundry.toml`.
+```shell
+$ forge snapshot
+```
 
-## License
+### Anvil
 
-MIT
+```shell
+$ anvil
+```
+
+### Deploy
+
+```shell
+$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+```
+
+### Cast
+
+```shell
+$ cast <subcommand>
+```
+
+### Help
+
+```shell
+$ forge --help
+$ anvil --help
+$ cast --help
+```
