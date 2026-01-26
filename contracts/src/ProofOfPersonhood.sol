@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title ProofOfPersonhood
@@ -28,8 +28,12 @@ contract ProofOfPersonhood is Ownable, ReentrancyGuard {
     event AttestorRemoved(address indexed attestor);
 
     modifier onlyAttestor() {
-        require(attestors[msg.sender], "Not an attestor");
+        _checkAttestor();
         _;
+    }
+
+    function _checkAttestor() internal view {
+        require(attestors[msg.sender], "Not an attestor");
     }
 
     constructor(address _owner) Ownable(_owner) {}

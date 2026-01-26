@@ -2,9 +2,6 @@ import React from 'react';
 import { createGlobalStyle, ThemeProvider } from 'styled-components';
 import { 
   styleReset, 
-  List, 
-  ListItem, 
-  Divider, 
   Window, 
   WindowHeader, 
   WindowContent, 

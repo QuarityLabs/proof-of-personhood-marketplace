@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import "forge-std/Test.sol";
-import "../src/ProofOfPersonhood.sol";
+import {Test} from "forge-std/Test.sol";
+import {ProofOfPersonhood} from "../src/ProofOfPersonhood.sol";
 
 contract ProofOfPersonhoodTest is Test {
     ProofOfPersonhood poh;
