@@ -27,11 +27,11 @@ contract ProofOfPersonhoodTest is Test {
         vm.prank(attestor);
         poh.createAttestation(person, keccak256("metadata"));
 
-        (address attestedPerson, uint256 timestamp, bool verified, bytes32 metadataHash) = poh.getAttestation(person);
-        assertEq(attestedPerson, person);
-        assertGt(timestamp, 0);
-        assertFalse(verified);
-        assertEq(metadataHash, keccak256("metadata"));
+        ProofOfPersonhood.Attestation memory attestation = poh.getAttestation(person);
+        assertEq(attestation.person, person);
+        assertGt(attestation.timestamp, 0);
+        assertFalse(attestation.verified);
+        assertEq(attestation.metadataHash, keccak256("metadata"));
     }
 
     function test_VerifyAttestation() public {
