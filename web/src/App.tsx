@@ -55,12 +55,12 @@ const App = () => {
             
             <div className="mb-4">
               <label>Wallet Address:</label>
-              <TextField placeholder="0x..." fullWidth />
+              <TextField placeholder="0x..." className="w-full" />
             </div>
 
             <div className="flex justify-between mt-4">
               <Button onClick={() => alert('Connecting...')}>Connect Wallet</Button>
-              <Button active>Verify Identity</Button>
+              <Button>Verify Identity</Button>
             </div>
           </WindowContent>
         </Window>
