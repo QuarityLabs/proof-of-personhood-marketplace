@@ -29,6 +29,14 @@ jobs:
       - name: Run Forge fmt
         run: forge fmt --check
 
+      - name: Debug CI
+        run: |
+          ls -la
+          ls -R lib || echo "lib not found or empty"
+          ls -la lib/forge-std/src/ || echo "forge-std/src not found"
+          forge remappings
+          git submodule status
+
       - name: Build
         run: forge build --sizes
 
