@@ -5,11 +5,11 @@ import App from '../App';
 describe('App', () => {
   it('renders title', () => {
     render(<App />);
-    expect(screen.getByText('Proof of Personhood')).toBeInTheDocument();
+    expect(screen.getByText('ProofOfPersonhood.exe')).toBeInTheDocument();
   });
 
   it('renders subtitle', () => {
     render(<App />);
-    expect(screen.getByText('Web Frontend Skeleton')).toBeInTheDocument();
+    expect(screen.getByText('Welcome to the Identity Verification Portal.')).toBeInTheDocument();
   });
 });
