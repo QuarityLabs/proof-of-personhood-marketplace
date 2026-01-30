@@ -1,108 +1,126 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+/**
+ * @title PersonhoodLending
+ * @notice Protocol-compliant marketplace for lending personhood context
+ * @dev Implements offer-based marketplace with deposit slashing mechanism
+ */
 contract PersonhoodLending {
-    // Structure to represent a lending agreement
-    struct LendingAgreement {
-        uint256 agreementId;
-        address lender;
-        address borrower;
-        string context; // e.g. "Polkadot Forum", "Governance Voting", etc.
-        uint256 startTime;
-        uint256 duration; // in seconds
-        uint256 collateral;
-        bool isActive;
+    // ============ Enums ============
+
+    /**
+     * @notice Offer status states
+     * @dev State machine: PENDING -> ACTIVE -> EXPIRED -> [PENDING | REMOVED]
+     */
+    enum OfferStatus {
+        PENDING,
+        ACTIVE,
+        EXPIRED,
+        REMOVED
     }
 
-    // Mapping of agreement IDs to agreements
-    mapping(uint256 => LendingAgreement) public agreements;
+    /**
+     * @notice Usage request status for slashing mechanism
+     */
+    enum RequestStatus {
+        PENDING,
+        APPROVED,
+        REJECTED,
+        SLASHED
+    }
 
-    // Total agreements counter
-    uint256 public totalAgreements;
+    // ============ Structs ============
 
-    // Event for when a lending agreement is created
-    event AgreementCreated(
-        uint256 indexed agreementId,
-        address indexed lender,
-        address indexed borrower,
-        string context,
-        uint256 duration,
-        uint256 collateral
+    /**
+     * @notice Offer struct representing a personhood lending offer
+     */
+    struct Offer {
+        uint256 offerId;
+        address submitter;
+        address renter;
+        string usageContext;
+        uint256 weeklyPayment;
+        uint256 deposit;
+        bytes signature;
+        uint256 createdAt;
+        uint256 rentedAt;
+        uint256 expiresAt;
+        OfferStatus status;
+        bool autoApprove;
+        uint256 totalRentals;
+    }
+
+    /**
+     * @notice UsageRequest struct for slashing mechanism
+     */
+    struct UsageRequest {
+        uint256 requestId;
+        uint256 offerId;
+        address renter;
+        uint256 deadline;
+        RequestStatus status;
+        uint256 createdAt;
+    }
+
+    // ============ Constants ============
+
+    uint256 public constant MIN_DEPOSIT = 0.1 ether;
+    uint256 public constant GRACE_PERIOD = 7 days;
+    uint256 public constant SLASHING_PERIOD = 1 hours;
+    uint256 public constant SLASHING_PERCENTAGE = 1000;
+    uint256 public constant BASIS_POINTS = 10000;
+    uint256 public constant RENTAL_DURATION = 7 days;
+
+    // ============ State Variables ============
+
+    uint256 public nextOfferId;
+    uint256 public nextRequestId;
+    mapping(uint256 => Offer) public offers;
+    mapping(uint256 => UsageRequest) public usageRequests;
+    mapping(uint256 => uint256[]) public offerRequestHistory;
+    mapping(address => uint256[]) public submitterOffers;
+    mapping(address => uint256[]) public renterActiveOffers;
+    mapping(bytes => bool) public usedSignatures;
+
+    // ============ Events ============
+
+    event OfferCreated(
+        uint256 indexed offerId,
+        address indexed submitter,
+        string usageContext,
+        uint256 weeklyPayment,
+        uint256 deposit,
+        uint256 createdAt
     );
 
-    // Event for when a lending agreement is completed
-    event AgreementCompleted(uint256 indexed agreementId);
+    event OfferAccepted(uint256 indexed offerId, address indexed renter, uint256 rentedAt, uint256 expiresAt);
 
-    /**
-     * @dev Create a new personhood lending agreement
-     * @param _borrower The address borrowing the personhood
-     * @param _context The specific context for which personhood is borrowed
-     * @param _duration The duration of the lending agreement in seconds
-     */
-    function createAgreement(address _borrower, string memory _context, uint256 _duration)
-        public
-        payable
-        returns (uint256)
-    {
-        // Validate inputs
-        require(_borrower != address(0), "Invalid borrower address");
-        require(bytes(_context).length > 0, "Context cannot be empty");
-        require(_duration > 0, "Duration must be greater than 0");
-        require(msg.value > 0, "Collateral must be greater than 0");
+    event RentalRenewed(uint256 indexed offerId, uint256 newExpiresAt, uint256 paymentAmount);
 
-        // Create new agreement
-        totalAgreements++;
-        uint256 agreementId = totalAgreements;
+    event OfferExpired(uint256 indexed offerId, uint256 expiredAt);
 
-        agreements[agreementId] = LendingAgreement({
-            agreementId: agreementId,
-            lender: msg.sender,
-            borrower: _borrower,
-            context: _context,
-            startTime: block.timestamp,
-            duration: _duration,
-            collateral: msg.value,
-            isActive: true
-        });
+    event OfferReturnedToMarket(uint256 indexed offerId, uint256 returnedAt);
 
-        emit AgreementCreated(agreementId, msg.sender, _borrower, _context, _duration, msg.value);
+    event OfferRemoved(uint256 indexed offerId, uint256 removedAt);
 
-        return agreementId;
-    }
+    event DepositClaimed(uint256 indexed offerId, address indexed submitter, uint256 depositAmount, uint256 claimedAt);
 
-    /**
-     * @dev Complete a lending agreement and return collateral
-     * @param _agreementId The ID of the agreement to complete
-     */
-    function completeAgreement(uint256 _agreementId) public {
-        LendingAgreement storage agreement = agreements[_agreementId];
+    event OfferTermsUpdated(uint256 indexed offerId, uint256 oldPayment, uint256 newPayment, uint256 updatedAt);
 
-        // Validate that agreement exists and is active
-        require(agreement.agreementId != 0, "Agreement does not exist");
-        require(agreement.isActive, "Agreement is not active");
-        require(agreement.lender == msg.sender, "Only lender can complete agreement");
-        require(block.timestamp >= agreement.startTime + agreement.duration, "Agreement duration not yet completed");
+    event UsageRequested(uint256 indexed requestId, uint256 indexed offerId, address indexed renter, uint256 deadline);
 
-        // Mark agreement as inactive
-        agreement.isActive = false;
+    event UsageApproved(uint256 indexed requestId, uint256 indexed offerId, uint256 approvedAt);
 
-        // Transfer collateral back to lender
-        payable(agreement.lender).transfer(agreement.collateral);
+    event UsageRejected(uint256 indexed requestId, uint256 indexed offerId, uint256 rejectedAt);
 
-        emit AgreementCompleted(_agreementId);
-    }
+    event DepositSlashed(
+        uint256 indexed requestId,
+        uint256 indexed offerId,
+        address indexed caller,
+        uint256 slashAmount,
+        uint256 remainingDeposit
+    );
 
-    /**
-     * @dev Get the details of a specific lending agreement
-     * @param _agreementId The ID of the agreement to query
-     * @return The lending agreement details
-     */
-    function getAgreement(uint256 _agreementId) public view returns (LendingAgreement memory) {
-        return agreements[_agreementId];
-    }
-
-    /**
-     * @dev Fallback function to receive ETH
-     */
-    receive() external payable {}
+    event AutoApproveSet(uint256 indexed offerId, bool autoApprove, uint256 updatedAt);
 }
