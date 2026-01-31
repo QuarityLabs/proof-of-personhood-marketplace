@@ -242,7 +242,8 @@ contract PersonhoodLending {
 
         require(offer.status == OfferStatus.EXPIRED, "Offer not expired");
         require(
-            offer.renter == msg.sender || offer.submitter == msg.sender || block.timestamp > offer.expiresAt + GRACE_PERIOD,
+            offer.renter == msg.sender || offer.submitter == msg.sender
+                || block.timestamp > offer.expiresAt + GRACE_PERIOD,
             "Not authorized or grace period still active"
         );
         require(offer.activeDisputeId == 0, "Cannot return with active dispute");

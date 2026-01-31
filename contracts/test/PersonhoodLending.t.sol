@@ -116,7 +116,7 @@ contract PersonhoodLendingTest is Test {
         vm.deal(renter, 0.11 ether);
         vm.prank(renter);
         marketplace.acceptOffer{value: 0.11 ether}(offerId);
-        
+
         (,, address offerRenter,,,,,,,,,,,,) = marketplace.offers(offerId);
         assertEq(offerRenter, renter);
     }
@@ -127,7 +127,7 @@ contract PersonhoodLendingTest is Test {
         vm.deal(renter, 0.22 ether);
         vm.prank(renter);
         marketplace.acceptOffer{value: 0.11 ether}(offerId);
-        
+
         address renter2 = address(0x5678);
         vm.deal(renter2, 0.11 ether);
         vm.prank(renter2);
