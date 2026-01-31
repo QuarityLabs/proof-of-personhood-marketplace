@@ -141,6 +141,36 @@ contract PersonhoodLending {
         protocolTreasury = _protocolTreasury;
     }
 
+    // ============ Internal Functions ============
+
+    /**
+     * @notice Calculate payout amount after applying offence penalties
+     * @param _totalLocked Total locked payment amount
+     * @param _offences Number of lender offences
+     * @return payoutAmount Amount to pay to lender
+     * @return penaltyAmount Amount to send to treasury as penalty
+     */
+    function _calculatePayoutWithPenalties(uint256 _totalLocked, uint256 _offences)
+        internal
+        pure
+        returns (uint256 payoutAmount, uint256 penaltyAmount)
+    {
+        if (_totalLocked == 0) {
+            return (0, 0);
+        }
+
+        // Calculate penalty based on offences (50% reduction per offence)
+        uint256 payoutPercentage = BASIS_POINTS;
+        for (uint256 i = 0; i < _offences; i++) {
+            payoutPercentage = (payoutPercentage * (BASIS_POINTS - OFFENCE_PENALTY_PERCENTAGE)) / BASIS_POINTS;
+        }
+
+        payoutAmount = (_totalLocked * payoutPercentage) / BASIS_POINTS;
+        penaltyAmount = _totalLocked - payoutAmount;
+
+        return (payoutAmount, penaltyAmount);
+    }
+
     // ============ Core Functions ============
 
     /**
@@ -192,6 +222,7 @@ contract PersonhoodLending {
     function acceptOffer(uint256 _offerId) external payable {
         Offer storage offer = offers[_offerId];
 
+        require(offer.submitter != address(0), "Offer does not exist");
         require(offer.status == OfferStatus.PENDING, "Offer not available");
         require(offer.submitter != msg.sender, "Cannot rent own offer");
         require(msg.value == offer.deposit + offer.weeklyPayment, "Incorrect payment amount");
@@ -228,9 +259,11 @@ contract PersonhoodLending {
         }
 
         offer.lockedPayment += offer.weeklyPayment;
-        offer.expiresAt = block.timestamp + RENTAL_DURATION;
+        // Extend from current expiration or now, whichever is later
+        uint256 newExpiresAt = (offer.expiresAt > block.timestamp ? offer.expiresAt : block.timestamp) + RENTAL_DURATION;
+        offer.expiresAt = newExpiresAt;
 
-        emit RentalRenewed(_offerId, offer.expiresAt, offer.weeklyPayment);
+        emit RentalRenewed(_offerId, newExpiresAt, offer.weeklyPayment);
     }
 
     /**
@@ -247,6 +280,11 @@ contract PersonhoodLending {
             "Not authorized or grace period still active"
         );
         require(offer.activeDisputeId == 0, "Cannot return with active dispute");
+        // Prevent non-renters from resetting offers with locked payments
+        require(
+            offer.lockedPayment == 0 || msg.sender == offer.renter,
+            "Renter must settle locked payment before returning to market"
+        );
 
         offer.renter = address(0);
         offer.rentedAt = 0;
@@ -268,13 +306,25 @@ contract PersonhoodLending {
         require(offer.activeDisputeId == 0, "Cannot remove with active dispute");
         require(block.timestamp > offer.expiresAt + GRACE_PERIOD, "Grace period still active");
 
-        uint256 refundAmount = offer.lockedPayment;
+        uint256 totalLocked = offer.lockedPayment;
+        uint256 lenderOffences = offer.lenderOffences;
+
+        // Calculate payout with penalties (same logic as claimPayout)
+        (uint256 payoutAmount, uint256 penaltyAmount) = _calculatePayoutWithPenalties(totalLocked, lenderOffences);
 
         offer.status = OfferStatus.REMOVED;
+        offer.lockedPayment = 0;
 
-        if (refundAmount > 0) {
-            (bool success,) = payable(offer.submitter).call{value: refundAmount}("");
+        // Transfer payout to lender
+        if (payoutAmount > 0) {
+            (bool success,) = payable(offer.submitter).call{value: payoutAmount}("");
             require(success, "Refund transfer failed");
+        }
+
+        // Transfer penalty to treasury
+        if (penaltyAmount > 0) {
+            (bool success,) = payable(protocolTreasury).call{value: penaltyAmount}("");
+            require(success, "Penalty transfer failed");
         }
 
         emit OfferRemoved(_offerId, block.timestamp);
@@ -287,7 +337,11 @@ contract PersonhoodLending {
     function claimPayout(uint256 _offerId) external {
         Offer storage offer = offers[_offerId];
 
-        require(offer.status == OfferStatus.ACTIVE || offer.status == OfferStatus.EXPIRED, "Invalid offer status");
+        require(
+            offer.status == OfferStatus.EXPIRED
+                || (offer.status == OfferStatus.ACTIVE && block.timestamp >= offer.expiresAt),
+            "Rental must be expired to claim payout"
+        );
         require(offer.submitter == msg.sender, "Only submitter can claim");
         require(offer.activeDisputeId == 0, "Cannot claim with active dispute");
         require(offer.lockedPayment > 0, "No locked payment to claim");
@@ -295,14 +349,8 @@ contract PersonhoodLending {
         uint256 totalLocked = offer.lockedPayment;
         uint256 lenderOffences = offer.lenderOffences;
 
-        // Calculate penalty based on offences (50% reduction per offence)
-        uint256 payoutPercentage = BASIS_POINTS;
-        for (uint256 i = 0; i < lenderOffences; i++) {
-            payoutPercentage = (payoutPercentage * (BASIS_POINTS - OFFENCE_PENALTY_PERCENTAGE)) / BASIS_POINTS;
-        }
-
-        uint256 payoutAmount = (totalLocked * payoutPercentage) / BASIS_POINTS;
-        uint256 penaltyAmount = totalLocked - payoutAmount;
+        // Calculate payout with penalties
+        (uint256 payoutAmount, uint256 penaltyAmount) = _calculatePayoutWithPenalties(totalLocked, lenderOffences);
 
         // Reset locked payment before external call (reentrancy protection)
         offer.lockedPayment = 0;
