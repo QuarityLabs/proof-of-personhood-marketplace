@@ -3,16 +3,12 @@ pragma solidity ^0.8.23;
 
 /**
  * @title PersonhoodLending
- * @notice Protocol-compliant marketplace for lending personhood context
- * @dev Implements offer-based marketplace with deposit slashing mechanism
+ * @notice Protocol v2.0 - Dispute-based marketplace for personhood context
+ * @dev Off-chain first communication, on-chain dispute resolution
  */
 contract PersonhoodLending {
     // ============ Enums ============
 
-    /**
-     * @notice Offer status states
-     * @dev State machine: PENDING -> ACTIVE -> EXPIRED -> [PENDING | REMOVED]
-     */
     enum OfferStatus {
         PENDING,
         ACTIVE,
@@ -20,21 +16,15 @@ contract PersonhoodLending {
         REMOVED
     }
 
-    /**
-     * @notice Usage request status for slashing mechanism
-     */
-    enum RequestStatus {
+    enum DisputeStatus {
         PENDING,
-        APPROVED,
-        REJECTED,
-        SLASHED
+        RESOLVED_SIGNATURE,
+        RESOLVED_ACK,
+        TIMEOUT
     }
 
     // ============ Structs ============
 
-    /**
-     * @notice Offer struct representing a personhood lending offer
-     */
     struct Offer {
         uint256 offerId;
         address submitter;
@@ -42,46 +32,50 @@ contract PersonhoodLending {
         string usageContext;
         uint256 weeklyPayment;
         uint256 deposit;
-        bytes signature;
+        uint256 lockedPayment;
         uint256 createdAt;
         uint256 rentedAt;
         uint256 expiresAt;
         OfferStatus status;
-        bool autoApprove;
         uint256 totalRentals;
+        uint8 lenderOffences;
+        uint8 renterInvalidDisputes;
+        uint256 activeDisputeId;
     }
 
-    /**
-     * @notice UsageRequest struct for slashing mechanism
-     */
-    struct UsageRequest {
-        uint256 requestId;
+    struct Dispute {
+        uint256 disputeId;
         uint256 offerId;
         address renter;
+        bytes renterSignedRequest;
+        bytes expectedPayload;
         uint256 deadline;
-        RequestStatus status;
+        DisputeStatus status;
         uint256 createdAt;
+        uint256 disputeDeposit;
     }
 
     // ============ Constants ============
 
     uint256 public constant MIN_DEPOSIT = 0.1 ether;
+    uint256 public constant MIN_WEEKLY_PAYMENT = 0.01 ether;
     uint256 public constant GRACE_PERIOD = 7 days;
-    uint256 public constant SLASHING_PERIOD = 1 hours;
-    uint256 public constant SLASHING_PERCENTAGE = 1000;
+    uint256 public constant DISPUTE_TIMEOUT = 2 hours;
+    uint256 public constant OFFENCE_PENALTY_PERCENTAGE = 5000;
     uint256 public constant BASIS_POINTS = 10000;
     uint256 public constant RENTAL_DURATION = 7 days;
+    uint256 public constant MAX_OFFENCES = 3;
+    uint256 public constant MAX_INVALID_DISPUTES = 3;
 
     // ============ State Variables ============
 
     uint256 public nextOfferId;
-    uint256 public nextRequestId;
+    uint256 public nextDisputeId;
+    address public protocolTreasury;
     mapping(uint256 => Offer) public offers;
-    mapping(uint256 => UsageRequest) public usageRequests;
-    mapping(uint256 => uint256[]) public offerRequestHistory;
+    mapping(uint256 => Dispute) public disputes;
     mapping(address => uint256[]) public submitterOffers;
     mapping(address => uint256[]) public renterActiveOffers;
-    mapping(bytes => bool) public usedSignatures;
 
     // ============ Events ============
 
@@ -94,9 +88,11 @@ contract PersonhoodLending {
         uint256 createdAt
     );
 
-    event OfferAccepted(uint256 indexed offerId, address indexed renter, uint256 rentedAt, uint256 expiresAt);
+    event OfferAccepted(
+        uint256 indexed offerId, address indexed renter, uint256 rentedAt, uint256 expiresAt, uint256 weeklyPayment
+    );
 
-    event RentalRenewed(uint256 indexed offerId, uint256 newExpiresAt, uint256 paymentAmount);
+    event RentalRenewed(uint256 indexed offerId, uint256 newExpiresAt, uint256 additionalPayment);
 
     event OfferExpired(uint256 indexed offerId, uint256 expiredAt);
 
@@ -104,23 +100,44 @@ contract PersonhoodLending {
 
     event OfferRemoved(uint256 indexed offerId, uint256 removedAt);
 
+    event PayoutClaimed(
+        uint256 indexed offerId,
+        address indexed submitter,
+        uint256 payoutAmount,
+        uint256 penaltyAmount,
+        uint256 offences
+    );
+
     event DepositClaimed(uint256 indexed offerId, address indexed submitter, uint256 depositAmount, uint256 claimedAt);
 
     event OfferTermsUpdated(uint256 indexed offerId, uint256 oldPayment, uint256 newPayment, uint256 updatedAt);
 
-    event UsageRequested(uint256 indexed requestId, uint256 indexed offerId, address indexed renter, uint256 deadline);
-
-    event UsageApproved(uint256 indexed requestId, uint256 indexed offerId, uint256 approvedAt);
-
-    event UsageRejected(uint256 indexed requestId, uint256 indexed offerId, uint256 rejectedAt);
-
-    event DepositSlashed(
-        uint256 indexed requestId,
-        uint256 indexed offerId,
-        address indexed caller,
-        uint256 slashAmount,
-        uint256 remainingDeposit
+    event DisputeSubmitted(
+        uint256 indexed disputeId, uint256 indexed offerId, address indexed renter, uint256 deadline, uint256 deposit
     );
 
-    event AutoApproveSet(uint256 indexed offerId, bool autoApprove, uint256 updatedAt);
+    event SignatureSubmitted(uint256 indexed disputeId, uint256 indexed offerId, bytes signature, uint256 submittedAt);
+
+    event ACKSubmitted(uint256 indexed disputeId, uint256 indexed offerId, bytes renterAck, uint256 submittedAt);
+
+    event DisputeResolved(
+        uint256 indexed disputeId, uint256 indexed offerId, DisputeStatus resolution, uint256 resolvedAt
+    );
+
+    event OffenceCounted(uint256 indexed offerId, address indexed party, uint8 offenceCount, uint8 offenceType);
+
+    event RentCancelled(
+        uint256 indexed offerId,
+        address indexed renter,
+        uint256 refundAmount,
+        uint256 depositToTreasury,
+        uint256 cancelledAt
+    );
+
+    // ============ Constructor ============
+
+    constructor(address _protocolTreasury) {
+        require(_protocolTreasury != address(0), "Invalid treasury address");
+        protocolTreasury = _protocolTreasury;
+    }
 }
