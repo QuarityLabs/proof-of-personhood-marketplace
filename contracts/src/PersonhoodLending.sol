@@ -1,108 +1,143 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+/**
+ * @title PersonhoodLending
+ * @notice Protocol v2.0 - Dispute-based marketplace for personhood context
+ * @dev Off-chain first communication, on-chain dispute resolution
+ */
 contract PersonhoodLending {
-    // Structure to represent a lending agreement
-    struct LendingAgreement {
-        uint256 agreementId;
-        address lender;
-        address borrower;
-        string context; // e.g. "Polkadot Forum", "Governance Voting", etc.
-        uint256 startTime;
-        uint256 duration; // in seconds
-        uint256 collateral;
-        bool isActive;
+    // ============ Enums ============
+
+    enum OfferStatus {
+        PENDING,
+        ACTIVE,
+        EXPIRED,
+        REMOVED
     }
 
-    // Mapping of agreement IDs to agreements
-    mapping(uint256 => LendingAgreement) public agreements;
+    enum DisputeStatus {
+        PENDING,
+        RESOLVED_SIGNATURE,
+        RESOLVED_ACK,
+        TIMEOUT
+    }
 
-    // Total agreements counter
-    uint256 public totalAgreements;
+    // ============ Structs ============
 
-    // Event for when a lending agreement is created
-    event AgreementCreated(
-        uint256 indexed agreementId,
-        address indexed lender,
-        address indexed borrower,
-        string context,
-        uint256 duration,
-        uint256 collateral
+    struct Offer {
+        uint256 offerId;
+        address submitter;
+        address renter;
+        string usageContext;
+        uint256 weeklyPayment;
+        uint256 deposit;
+        uint256 lockedPayment;
+        uint256 createdAt;
+        uint256 rentedAt;
+        uint256 expiresAt;
+        OfferStatus status;
+        uint256 totalRentals;
+        uint8 lenderOffences;
+        uint8 renterInvalidDisputes;
+        uint256 activeDisputeId;
+    }
+
+    struct Dispute {
+        uint256 disputeId;
+        uint256 offerId;
+        address renter;
+        bytes renterSignedRequest;
+        bytes expectedPayload;
+        uint256 deadline;
+        DisputeStatus status;
+        uint256 createdAt;
+        uint256 disputeDeposit;
+    }
+
+    // ============ Constants ============
+
+    uint256 public constant MIN_DEPOSIT = 0.1 ether;
+    uint256 public constant MIN_WEEKLY_PAYMENT = 0.01 ether;
+    uint256 public constant GRACE_PERIOD = 7 days;
+    uint256 public constant DISPUTE_TIMEOUT = 2 hours;
+    uint256 public constant OFFENCE_PENALTY_PERCENTAGE = 5000;
+    uint256 public constant BASIS_POINTS = 10000;
+    uint256 public constant RENTAL_DURATION = 7 days;
+    uint256 public constant MAX_OFFENCES = 3;
+    uint256 public constant MAX_INVALID_DISPUTES = 3;
+
+    // ============ State Variables ============
+
+    uint256 public nextOfferId;
+    uint256 public nextDisputeId;
+    address public protocolTreasury;
+    mapping(uint256 => Offer) public offers;
+    mapping(uint256 => Dispute) public disputes;
+    mapping(address => uint256[]) public submitterOffers;
+    mapping(address => uint256[]) public renterActiveOffers;
+
+    // ============ Events ============
+
+    event OfferCreated(
+        uint256 indexed offerId,
+        address indexed submitter,
+        string usageContext,
+        uint256 weeklyPayment,
+        uint256 deposit,
+        uint256 createdAt
     );
 
-    // Event for when a lending agreement is completed
-    event AgreementCompleted(uint256 indexed agreementId);
+    event OfferAccepted(
+        uint256 indexed offerId, address indexed renter, uint256 rentedAt, uint256 expiresAt, uint256 weeklyPayment
+    );
 
-    /**
-     * @dev Create a new personhood lending agreement
-     * @param _borrower The address borrowing the personhood
-     * @param _context The specific context for which personhood is borrowed
-     * @param _duration The duration of the lending agreement in seconds
-     */
-    function createAgreement(address _borrower, string memory _context, uint256 _duration)
-        public
-        payable
-        returns (uint256)
-    {
-        // Validate inputs
-        require(_borrower != address(0), "Invalid borrower address");
-        require(bytes(_context).length > 0, "Context cannot be empty");
-        require(_duration > 0, "Duration must be greater than 0");
-        require(msg.value > 0, "Collateral must be greater than 0");
+    event RentalRenewed(uint256 indexed offerId, uint256 newExpiresAt, uint256 additionalPayment);
 
-        // Create new agreement
-        totalAgreements++;
-        uint256 agreementId = totalAgreements;
+    event OfferExpired(uint256 indexed offerId, uint256 expiredAt);
 
-        agreements[agreementId] = LendingAgreement({
-            agreementId: agreementId,
-            lender: msg.sender,
-            borrower: _borrower,
-            context: _context,
-            startTime: block.timestamp,
-            duration: _duration,
-            collateral: msg.value,
-            isActive: true
-        });
+    event OfferReturnedToMarket(uint256 indexed offerId, uint256 returnedAt);
 
-        emit AgreementCreated(agreementId, msg.sender, _borrower, _context, _duration, msg.value);
+    event OfferRemoved(uint256 indexed offerId, uint256 removedAt);
 
-        return agreementId;
+    event PayoutClaimed(
+        uint256 indexed offerId,
+        address indexed submitter,
+        uint256 payoutAmount,
+        uint256 penaltyAmount,
+        uint256 offences
+    );
+
+    event DepositClaimed(uint256 indexed offerId, address indexed submitter, uint256 depositAmount, uint256 claimedAt);
+
+    event OfferTermsUpdated(uint256 indexed offerId, uint256 oldPayment, uint256 newPayment, uint256 updatedAt);
+
+    event DisputeSubmitted(
+        uint256 indexed disputeId, uint256 indexed offerId, address indexed renter, uint256 deadline, uint256 deposit
+    );
+
+    event SignatureSubmitted(uint256 indexed disputeId, uint256 indexed offerId, bytes signature, uint256 submittedAt);
+
+    event ACKSubmitted(uint256 indexed disputeId, uint256 indexed offerId, bytes renterAck, uint256 submittedAt);
+
+    event DisputeResolved(
+        uint256 indexed disputeId, uint256 indexed offerId, DisputeStatus resolution, uint256 resolvedAt
+    );
+
+    event OffenceCounted(uint256 indexed offerId, address indexed party, uint8 offenceCount, uint8 offenceType);
+
+    event RentCancelled(
+        uint256 indexed offerId,
+        address indexed renter,
+        uint256 refundAmount,
+        uint256 depositToTreasury,
+        uint256 cancelledAt
+    );
+
+    // ============ Constructor ============
+
+    constructor(address _protocolTreasury) {
+        require(_protocolTreasury != address(0), "Invalid treasury address");
+        protocolTreasury = _protocolTreasury;
     }
-
-    /**
-     * @dev Complete a lending agreement and return collateral
-     * @param _agreementId The ID of the agreement to complete
-     */
-    function completeAgreement(uint256 _agreementId) public {
-        LendingAgreement storage agreement = agreements[_agreementId];
-
-        // Validate that agreement exists and is active
-        require(agreement.agreementId != 0, "Agreement does not exist");
-        require(agreement.isActive, "Agreement is not active");
-        require(agreement.lender == msg.sender, "Only lender can complete agreement");
-        require(block.timestamp >= agreement.startTime + agreement.duration, "Agreement duration not yet completed");
-
-        // Mark agreement as inactive
-        agreement.isActive = false;
-
-        // Transfer collateral back to lender
-        payable(agreement.lender).transfer(agreement.collateral);
-
-        emit AgreementCompleted(_agreementId);
-    }
-
-    /**
-     * @dev Get the details of a specific lending agreement
-     * @param _agreementId The ID of the agreement to query
-     * @return The lending agreement details
-     */
-    function getAgreement(uint256 _agreementId) public view returns (LendingAgreement memory) {
-        return agreements[_agreementId];
-    }
-
-    /**
-     * @dev Fallback function to receive ETH
-     */
-    receive() external payable {}
 }

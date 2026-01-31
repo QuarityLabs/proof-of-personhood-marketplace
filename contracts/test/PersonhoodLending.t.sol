@@ -5,69 +5,87 @@ import {Test} from "forge-std/Test.sol";
 import {PersonhoodLending} from "../src/PersonhoodLending.sol";
 
 contract PersonhoodLendingTest is Test {
-    PersonhoodLending public personhoodLending;
-
-    // Test accounts
-    address lender = address(0x1111);
-    address borrower = address(0x2222);
+    PersonhoodLending public marketplace;
+    address public treasury = address(0x9999);
 
     function setUp() public {
-        personhoodLending = new PersonhoodLending();
+        marketplace = new PersonhoodLending(treasury);
     }
 
-    function testCreateAgreement() public {
-        // Setup the agreement parameters
-        string memory context = "Polkadot Forum";
-        uint256 duration = 7 days;
-        uint256 collateral = 1 ether;
-
-        // Create the agreement
-        vm.deal(lender, collateral);
-        vm.prank(lender);
-        uint256 agreementId = personhoodLending.createAgreement{value: collateral}(borrower, context, duration);
-
-        // Verify the agreement was created correctly
-        PersonhoodLending.LendingAgreement memory agreement = personhoodLending.getAgreement(agreementId);
-        assertEq(agreement.agreementId, 1);
-        assertEq(agreement.lender, lender);
-        assertEq(agreement.borrower, borrower);
-        assertEq(keccak256(abi.encodePacked(agreement.context)), keccak256(abi.encodePacked(context)));
-        assertEq(agreement.duration, duration);
-        assertEq(agreement.collateral, collateral);
-        assertTrue(agreement.isActive);
+    function test_OfferStatusEnumValues() public pure {
+        assertEq(uint256(PersonhoodLending.OfferStatus.PENDING), 0);
+        assertEq(uint256(PersonhoodLending.OfferStatus.ACTIVE), 1);
+        assertEq(uint256(PersonhoodLending.OfferStatus.EXPIRED), 2);
+        assertEq(uint256(PersonhoodLending.OfferStatus.REMOVED), 3);
     }
 
-    function testCompleteAgreement() public {
-        // Setup the agreement parameters
-        string memory context = "Governance Voting";
-        uint256 duration = 1 hours;
-        uint256 collateral = 0.5 ether;
-
-        // Create an agreement first
-        vm.deal(lender, collateral);
-        vm.prank(lender);
-        uint256 agreementId = personhoodLending.createAgreement{value: collateral}(borrower, context, duration);
-
-        // Warp time forward to simulate completion of the agreement duration
-        vm.warp(block.timestamp + duration + 1);
-
-        // Complete the agreement
-        vm.prank(lender);
-        personhoodLending.completeAgreement(agreementId);
-
-        // Check that the agreement is no longer active
-        PersonhoodLending.LendingAgreement memory agreement = personhoodLending.getAgreement(agreementId);
-        assertFalse(agreement.isActive);
+    function test_DisputeStatusEnumValues() public pure {
+        assertEq(uint256(PersonhoodLending.DisputeStatus.PENDING), 0);
+        assertEq(uint256(PersonhoodLending.DisputeStatus.RESOLVED_SIGNATURE), 1);
+        assertEq(uint256(PersonhoodLending.DisputeStatus.RESOLVED_ACK), 2);
+        assertEq(uint256(PersonhoodLending.DisputeStatus.TIMEOUT), 3);
     }
 
-    function test_RevertWhen_ZeroAddressBorrower() public {
-        vm.deal(address(this), 1 ether);
-        vm.expectRevert("Invalid borrower address");
-        personhoodLending.createAgreement{value: 1 ether}(address(0), "Test Context", 1 days);
+    function test_ProtocolConstants() public view {
+        assertEq(marketplace.MIN_DEPOSIT(), 0.1 ether);
+        assertEq(marketplace.MIN_WEEKLY_PAYMENT(), 0.01 ether);
+        assertEq(marketplace.GRACE_PERIOD(), 7 days);
+        assertEq(marketplace.DISPUTE_TIMEOUT(), 2 hours);
+        assertEq(marketplace.OFFENCE_PENALTY_PERCENTAGE(), 5000);
+        assertEq(marketplace.BASIS_POINTS(), 10000);
+        assertEq(marketplace.RENTAL_DURATION(), 7 days);
+        assertEq(marketplace.MAX_OFFENCES(), 3);
+        assertEq(marketplace.MAX_INVALID_DISPUTES(), 3);
     }
 
-    function test_RevertWhen_ZeroCollateral() public {
-        vm.expectRevert("Collateral must be greater than 0");
-        personhoodLending.createAgreement(borrower, "Test Context", 1 days);
+    function test_InitialCounters() public view {
+        assertEq(marketplace.nextOfferId(), 0);
+        assertEq(marketplace.nextDisputeId(), 0);
     }
+
+    function test_ProtocolTreasury() public view {
+        assertEq(marketplace.protocolTreasury(), treasury);
+    }
+
+    function test_OfferStructExists() public {
+        PersonhoodLending.Offer memory testOffer = PersonhoodLending.Offer({
+            offerId: 1,
+            submitter: address(0x1111),
+            renter: address(0),
+            usageContext: "Polkadot Forum",
+            weeklyPayment: 0.01 ether,
+            deposit: 0.1 ether,
+            lockedPayment: 0,
+            createdAt: block.timestamp,
+            rentedAt: 0,
+            expiresAt: 0,
+            status: PersonhoodLending.OfferStatus.PENDING,
+            totalRentals: 0,
+            lenderOffences: 0,
+            renterInvalidDisputes: 0,
+            activeDisputeId: 0
+        });
+        assertEq(testOffer.offerId, 1);
+        assertEq(testOffer.lenderOffences, 0);
+        assertEq(testOffer.renterInvalidDisputes, 0);
+        assertEq(testOffer.activeDisputeId, 0);
+    }
+
+    function test_DisputeStructExists() public {
+        PersonhoodLending.Dispute memory testDispute = PersonhoodLending.Dispute({
+            disputeId: 1,
+            offerId: 1,
+            renter: address(0x2222),
+            renterSignedRequest: new bytes(64),
+            expectedPayload: new bytes(32),
+            deadline: block.timestamp + 2 hours,
+            status: PersonhoodLending.DisputeStatus.PENDING,
+            createdAt: block.timestamp,
+            disputeDeposit: 0.01 ether
+        });
+        assertEq(testDispute.disputeId, 1);
+        assertEq(testDispute.deadline, block.timestamp + 2 hours);
+    }
+
+    receive() external payable {}
 }

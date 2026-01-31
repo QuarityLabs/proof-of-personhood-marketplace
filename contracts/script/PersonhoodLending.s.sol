@@ -12,7 +12,8 @@ contract PersonhoodLendingScript is Script {
     function run() public {
         vm.startBroadcast();
 
-        personhoodLending = new PersonhoodLending();
+        address protocolTreasury = vm.envAddress("PROTOCOL_TREASURY");
+        personhoodLending = new PersonhoodLending(protocolTreasury);
 
         vm.stopBroadcast();
     }
