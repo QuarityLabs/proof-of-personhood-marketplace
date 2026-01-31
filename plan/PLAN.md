@@ -182,7 +182,7 @@ Off-chain communication is the default, on-chain is only for dispute resolution.
 
 | Task ID | Milestone | Title | Status |
 |---------|-----------|-------|--------|
-| m1-task-1 | 1 | Redesign Data Structures | in_progress |
+| m1-task-1 | 1 | Redesign Data Structures | Complete |
 | m1-task-2 | 1 | Implement Core Functions | pending |
 | m1-task-3 | 1 | Implement Dispute System | pending |
 | m1-task-4 | 1 | Implement Core Events | pending |
