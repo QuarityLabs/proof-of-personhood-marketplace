@@ -473,7 +473,7 @@ contract PersonhoodLending {
         Dispute storage dispute = disputes[_disputeId];
         Offer storage offer = offers[dispute.offerId];
 
-        require(dispute.disputeId != 0, "Dispute does not exist");
+        require(dispute.createdAt != 0, "Dispute does not exist");
         require(dispute.status == DisputeStatus.PENDING, "Dispute not pending");
         require(offer.submitter == msg.sender, "Only lender can submit signature");
         require(block.timestamp <= dispute.deadline, "Dispute deadline passed");
@@ -498,7 +498,7 @@ contract PersonhoodLending {
         Dispute storage dispute = disputes[_disputeId];
         Offer storage offer = offers[dispute.offerId];
 
-        require(dispute.disputeId != 0, "Dispute does not exist");
+        require(dispute.createdAt != 0, "Dispute does not exist");
         require(dispute.status == DisputeStatus.PENDING, "Dispute not pending");
         require(offer.submitter == msg.sender, "Only lender can submit ACK");
         require(block.timestamp <= dispute.deadline, "Dispute deadline passed");
@@ -528,7 +528,7 @@ contract PersonhoodLending {
         Dispute storage dispute = disputes[_disputeId];
         Offer storage offer = offers[dispute.offerId];
 
-        require(dispute.disputeId != 0, "Dispute does not exist");
+        require(dispute.createdAt != 0, "Dispute does not exist");
         require(dispute.status == DisputeStatus.PENDING, "Dispute not pending");
         require(block.timestamp > dispute.deadline, "Dispute deadline not yet passed");
 
