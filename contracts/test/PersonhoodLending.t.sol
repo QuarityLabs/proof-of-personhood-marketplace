@@ -182,8 +182,15 @@ contract PersonhoodLendingTest is Test {
         // Give renter more ETH for renewal payment
         vm.deal(renter, 0.01 ether);
 
-        vm.warp(block.timestamp + 3 days);
-        uint256 expectedExpiresAt = block.timestamp + 7 days;
+        // Record current timestamp after offer creation
+        uint256 currentTime = block.timestamp;
+        vm.warp(currentTime + 3 days);
+
+        // Contract extends from current expiresAt (which was 7 days from original creation)
+        // Since we warped 3 days, there are still 4 days remaining, so:
+        // newExpiresAt = (current expiresAt) + 7 days = (original + 7 days) + 7 days
+        // = original + 14 days = (currentTime - 3 days) + 14 days = currentTime + 11 days
+        uint256 expectedExpiresAt = currentTime + 11 days;
 
         vm.prank(renter);
         marketplace.renewRental{value: 0.01 ether}(offerId);
@@ -203,9 +210,13 @@ contract PersonhoodLendingTest is Test {
         address renter = address(0x1234);
 
         // Create disputes and timeout to get 3 lender offences
+        // Use absolute timestamp to avoid cumulative timing issues
+        uint256 startTime = block.timestamp;
         for (uint256 i = 0; i < 3; i++) {
             _submitDispute(offerId, renter);
-            vm.warp(block.timestamp + 2 hours + 1);
+            // Warp to absolute time: startTime + (i+1) * (2 hours + 1 second)
+            // This ensures each dispute's deadline is definitely passed
+            vm.warp(startTime + (i + 1) * (2 hours + 1));
             marketplace.resolveDisputeTimeout(i);
         }
 
@@ -319,6 +330,8 @@ contract PersonhoodLendingTest is Test {
         address renter = address(0x1234);
 
         // Submit 3 disputes and let them timeout to accumulate offences
+        // Use absolute timestamp to avoid cumulative timing issues
+        uint256 startTime = block.timestamp;
         for (uint256 i = 0; i < 3; i++) {
             // Give renter ETH for dispute deposit
             vm.deal(renter, 0.02 ether);
@@ -327,8 +340,9 @@ contract PersonhoodLendingTest is Test {
             vm.prank(renter);
             marketplace.submitDispute{value: 0.01 ether}(offerId, signedRequest, payload);
 
-            // Warp past dispute deadline (2 hours)
-            vm.warp(block.timestamp + 2 hours + 1);
+            // Warp to absolute time: startTime + (i+1) * (2 hours + 1 second)
+            // This ensures each dispute's deadline is definitely passed
+            vm.warp(startTime + (i + 1) * (2 hours + 1));
 
             // Resolve timeout
             marketplace.resolveDisputeTimeout(i);
