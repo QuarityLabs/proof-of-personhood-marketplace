@@ -87,5 +87,69 @@ contract PersonhoodLendingTest is Test {
         assertEq(testDispute.deadline, block.timestamp + 2 hours);
     }
 
+    // ============ Core Functions Tests ============
+
+    function test_CreateOffer() public {
+        uint256 offerId = marketplace.createOffer("Context", 0.01 ether, 0.1 ether);
+        assertEq(offerId, 0);
+        assertEq(marketplace.nextOfferId(), 1);
+    }
+
+    function test_CreateOffer_RevertEmptyContext() public {
+        vm.expectRevert("Usage context cannot be empty");
+        marketplace.createOffer("", 0.01 ether, 0.1 ether);
+    }
+
+    function test_CreateOffer_RevertLowPayment() public {
+        vm.expectRevert("Weekly payment too low");
+        marketplace.createOffer("Context", 0.009 ether, 0.1 ether);
+    }
+
+    function test_CreateOffer_RevertLowDeposit() public {
+        vm.expectRevert("Deposit too low");
+        marketplace.createOffer("Context", 0.01 ether, 0.09 ether);
+    }
+
+    function test_AcceptOffer() public {
+        uint256 offerId = marketplace.createOffer("Context", 0.01 ether, 0.1 ether);
+        address renter = address(0x1234);
+        vm.deal(renter, 0.11 ether);
+        vm.prank(renter);
+        marketplace.acceptOffer{value: 0.11 ether}(offerId);
+
+        (,, address offerRenter,,,,,,,,,,,,) = marketplace.offers(offerId);
+        assertEq(offerRenter, renter);
+    }
+
+    function test_AcceptOffer_RevertNotPending() public {
+        uint256 offerId = marketplace.createOffer("Context", 0.01 ether, 0.1 ether);
+        address renter = address(0x1234);
+        vm.deal(renter, 0.22 ether);
+        vm.prank(renter);
+        marketplace.acceptOffer{value: 0.11 ether}(offerId);
+
+        address renter2 = address(0x5678);
+        vm.deal(renter2, 0.11 ether);
+        vm.prank(renter2);
+        vm.expectRevert("Offer not available");
+        marketplace.acceptOffer{value: 0.11 ether}(offerId);
+    }
+
+    function test_AcceptOffer_RevertOwnOffer() public {
+        uint256 offerId = marketplace.createOffer("Context", 0.01 ether, 0.1 ether);
+        vm.deal(address(this), 0.11 ether);
+        vm.expectRevert("Cannot rent own offer");
+        marketplace.acceptOffer{value: 0.11 ether}(offerId);
+    }
+
+    function test_AcceptOffer_RevertIncorrectAmount() public {
+        uint256 offerId = marketplace.createOffer("Context", 0.01 ether, 0.1 ether);
+        address renter = address(0x1234);
+        vm.deal(renter, 0.1 ether);
+        vm.prank(renter);
+        vm.expectRevert("Incorrect payment amount");
+        marketplace.acceptOffer{value: 0.1 ether}(offerId);
+    }
+
     receive() external payable {}
 }
