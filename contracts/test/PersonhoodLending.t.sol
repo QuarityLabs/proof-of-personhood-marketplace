@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {Test} from "forge-std/Test.sol";
+import {Test} from "../lib/forge-std/src/Test.sol";
 import {PersonhoodLending} from "../src/PersonhoodLending.sol";
 
 contract PersonhoodLendingTest is Test {
@@ -152,4 +152,167 @@ contract PersonhoodLendingTest is Test {
     }
 
     receive() external payable {}
+
+    // ============ Helper Functions ============
+
+    function _createActiveOffer() internal returns (uint256) {
+        uint256 offerId = marketplace.createOffer("Test Context", 0.01 ether, 0.1 ether);
+        address renter = address(0x1234);
+        vm.deal(renter, 0.11 ether);
+        vm.prank(renter);
+        marketplace.acceptOffer{value: 0.11 ether}(offerId);
+        return offerId;
+    }
+
+    function _submitDispute(uint256 offerId, address renter) internal returns (uint256) {
+        bytes memory signedRequest = new bytes(64);
+        bytes memory payload = new bytes(32);
+        vm.deal(renter, 0.02 ether);
+        vm.prank(renter);
+        marketplace.submitDispute{value: 0.01 ether}(offerId, signedRequest, payload);
+        return marketplace.nextDisputeId() - 1;
+    }
+
+    // ============ Additional Core Functions Tests ============
+
+    function test_RenewRental() public {
+        uint256 offerId = _createActiveOffer();
+        address renter = address(0x1234);
+
+        vm.warp(block.timestamp + 3 days);
+        vm.prank(renter);
+        marketplace.renewRental{value: 0.01 ether}(offerId);
+
+        // Get expiresAt field (10th field, index 9)
+        (,,,,,,,,, uint256 expiresAt,,,,,) = marketplace.offers(offerId);
+        assertEq(expiresAt, block.timestamp + 7 days);
+    }
+
+    function test_ReturnToMarket() public {
+        uint256 offerId = _createActiveOffer();
+        address renter = address(0x1234);
+
+        vm.prank(renter);
+        marketplace.returnToMarket(offerId);
+
+        // Get renter field (3rd field, index 2)
+        (,, address offerRenter,,,,,,,,,,,,) = marketplace.offers(offerId);
+        assertEq(offerRenter, address(0));
+    }
+
+    function test_UpdateOfferTerms() public {
+        uint256 offerId = marketplace.createOffer("Context", 0.01 ether, 0.1 ether);
+        marketplace.updateOfferTerms(offerId, 0.02 ether);
+
+        // Get weeklyPayment field (5th field, index 4)
+        (,,,, uint256 weeklyPayment,,,,,,,,,,) = marketplace.offers(offerId);
+        assertEq(weeklyPayment, 0.02 ether);
+    }
+
+    // ============ Dispute System Tests ============
+
+    function test_SubmitDispute() public {
+        uint256 offerId = _createActiveOffer();
+        address renter = address(0x1234);
+        uint256 disputeId = _submitDispute(offerId, renter);
+
+        assertEq(disputeId, 0);
+        // Get activeDisputeId field (15th field, index 14)
+        (,,,,,,,,,,,,, uint256 activeDisputeId,) = marketplace.offers(offerId);
+        assertEq(activeDisputeId, disputeId);
+    }
+
+    function test_SubmitDispute_RevertNotActive() public {
+        uint256 offerId = marketplace.createOffer("Context", 0.01 ether, 0.1 ether);
+        address renter = address(0x1234);
+
+        bytes memory signedRequest = new bytes(64);
+        bytes memory payload = new bytes(32);
+
+        vm.deal(renter, 0.02 ether);
+        vm.prank(renter);
+        vm.expectRevert("Offer must be active");
+        marketplace.submitDispute{value: 0.01 ether}(offerId, signedRequest, payload);
+    }
+
+    function test_SubmitSignature() public {
+        uint256 offerId = _createActiveOffer();
+        address renter = address(0x1234);
+        uint256 disputeId = _submitDispute(offerId, renter);
+
+        bytes memory signature = new bytes(65);
+        marketplace.submitSignature(disputeId, signature);
+
+        // Dispute struct: 9 fields, status is 7th (index 6)
+        (,,,,,, PersonhoodLending.DisputeStatus status,,) = marketplace.disputes(disputeId);
+        assertEq(uint256(status), uint256(PersonhoodLending.DisputeStatus.RESOLVED_SIGNATURE));
+    }
+
+    function test_SubmitSignature_RevertNotLender() public {
+        uint256 offerId = _createActiveOffer();
+        address renter = address(0x1234);
+        address notLender = address(0x9999);
+        uint256 disputeId = _submitDispute(offerId, renter);
+
+        bytes memory signature = new bytes(65);
+        vm.prank(notLender);
+        vm.expectRevert("Only lender can submit signature");
+        marketplace.submitSignature(disputeId, signature);
+    }
+
+    function test_SubmitRenterACK() public {
+        uint256 offerId = _createActiveOffer();
+        address renter = address(0x1234);
+        uint256 disputeId = _submitDispute(offerId, renter);
+
+        bytes memory ack = new bytes(32);
+        marketplace.submitRenterACK(disputeId, ack);
+
+        (,,,,,, PersonhoodLending.DisputeStatus status,,) = marketplace.disputes(disputeId);
+        assertEq(uint256(status), uint256(PersonhoodLending.DisputeStatus.RESOLVED_ACK));
+
+        // renterInvalidDisputes is 14th field (index 13)
+        (,,,,,,,,,,,, uint8 renterInvalidDisputes,,) = marketplace.offers(offerId);
+        assertEq(uint256(renterInvalidDisputes), 1);
+    }
+
+    function test_ResolveDisputeTimeout() public {
+        uint256 offerId = _createActiveOffer();
+        address renter = address(0x1234);
+        address anyone = address(0x9999);
+        uint256 disputeId = _submitDispute(offerId, renter);
+
+        vm.warp(block.timestamp + 2 hours + 1);
+        vm.prank(anyone);
+        marketplace.resolveDisputeTimeout(disputeId);
+
+        (,,,,,, PersonhoodLending.DisputeStatus status,,) = marketplace.disputes(disputeId);
+        assertEq(uint256(status), uint256(PersonhoodLending.DisputeStatus.TIMEOUT));
+
+        // lenderOffences is 13th field (index 12)
+        (,,,,,,,,,,, uint256 lenderOffencesVal,,,) = marketplace.offers(offerId);
+        assertEq(lenderOffencesVal, 1);
+    }
+
+    function test_CancelRent() public {
+        uint256 offerId = _createActiveOffer();
+        address renter = address(0x1234);
+
+        // Submit 3 disputes and let them timeout to accumulate offences
+        for (uint256 i = 0; i < 3; i++) {
+            uint256 disputeId = _submitDispute(offerId, renter);
+            vm.warp(block.timestamp + 2 hours + 1);
+            marketplace.resolveDisputeTimeout(disputeId);
+            // Move forward to ensure each dispute is resolved
+            vm.warp(block.timestamp + 1);
+        }
+
+        // Now renter can cancel
+        vm.prank(renter);
+        marketplace.cancelRent(offerId);
+
+        // Check renter is cleared
+        (,, address offerRenter,,,,,,,,,,,,) = marketplace.offers(offerId);
+        assertEq(offerRenter, address(0));
+    }
 }
