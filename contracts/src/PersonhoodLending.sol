@@ -159,6 +159,7 @@ contract PersonhoodLending {
         offer.status = OfferStatus.EXPIRED;
         offer.lenderOffences = 0;
         offer.renterInvalidDisputes = 0;
+        offer.activeDisputeId = 0;
 
         // Refund deposit to renter
         if (refundAmount > 0) {
@@ -507,17 +508,19 @@ contract PersonhoodLending {
         dispute.status = DisputeStatus.RESOLVED_ACK;
         offer.activeDisputeId = 0;
         offer.renterInvalidDisputes++;
+        address renter = offer.renter;
+        uint8 invalidDisputes = offer.renterInvalidDisputes;
 
         (bool success,) = payable(protocolTreasury).call{value: dispute.disputeDeposit}("");
         require(success, "Deposit transfer to treasury failed");
 
-        if (offer.renterInvalidDisputes >= MAX_INVALID_DISPUTES) {
+        if (invalidDisputes >= MAX_INVALID_DISPUTES) {
             _cancelRental(offer, dispute.offerId);
         }
 
         emit ACKSubmitted(_disputeId, dispute.offerId, _renterAck, block.timestamp);
         emit DisputeResolved(_disputeId, dispute.offerId, DisputeStatus.RESOLVED_ACK, block.timestamp);
-        emit OffenceCounted(dispute.offerId, offer.renter, offer.renterInvalidDisputes, 1);
+        emit OffenceCounted(dispute.offerId, renter, invalidDisputes, 1);
     }
 
     /**
