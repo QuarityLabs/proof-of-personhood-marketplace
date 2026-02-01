@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {Test} from "../lib/forge-std/src/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {PersonhoodLending} from "../src/PersonhoodLending.sol";
 
 contract PersonhoodLendingTest is Test {
@@ -182,15 +182,13 @@ contract PersonhoodLendingTest is Test {
         // Give renter more ETH for renewal payment
         vm.deal(renter, 0.01 ether);
 
-        // Record current timestamp after offer creation
+        // Record current timestamp and original expiresAt after offer creation
         uint256 currentTime = block.timestamp;
+        (,,,,,,,,, uint256 originalExpiresAt,,,,,) = marketplace.offers(offerId);
         vm.warp(currentTime + 3 days);
 
-        // Contract extends from current expiresAt (which was 7 days from original creation)
-        // Since we warped 3 days, there are still 4 days remaining, so:
-        // newExpiresAt = (current expiresAt) + 7 days = (original + 7 days) + 7 days
-        // = original + 14 days = (currentTime - 3 days) + 14 days = currentTime + 11 days
-        uint256 expectedExpiresAt = currentTime + 11 days;
+        // Contract extends from the existing expiresAt when renewed
+        uint256 expectedExpiresAt = originalExpiresAt + 7 days;
 
         vm.prank(renter);
         marketplace.renewRental{value: 0.01 ether}(offerId);
