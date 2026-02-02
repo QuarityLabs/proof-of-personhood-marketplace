@@ -144,6 +144,39 @@ contract PersonhoodLending {
     // ============ Internal Functions ============
 
     /**
+     * @dev Internal function to cancel rental and handle refunds
+     */
+    function _cancelRental(Offer storage offer, uint256 _offerId) internal {
+        uint256 refundAmount = offer.deposit;
+        uint256 totalLocked = offer.lockedPayment;
+
+        // Clear offer state before external calls (reentrancy protection)
+        address renter = offer.renter;
+        offer.renter = address(0);
+        offer.rentedAt = 0;
+        offer.expiresAt = 0;
+        offer.lockedPayment = 0;
+        offer.status = OfferStatus.EXPIRED;
+        offer.lenderOffences = 0;
+        offer.renterInvalidDisputes = 0;
+        offer.activeDisputeId = 0;
+
+        // Refund deposit to renter
+        if (refundAmount > 0) {
+            (bool success,) = payable(renter).call{value: refundAmount}("");
+            require(success, "Refund transfer failed");
+        }
+
+        // Refund locked payment to renter
+        if (totalLocked > 0) {
+            (bool success,) = payable(renter).call{value: totalLocked}("");
+            require(success, "Locked payment refund failed");
+        }
+
+        emit RentCancelled(_offerId, renter, refundAmount + totalLocked, 0, block.timestamp);
+    }
+
+    /**
      * @notice Calculate payout amount after applying offence penalties
      * @param _totalLocked Total locked payment amount
      * @param _offences Number of lender offences
@@ -387,5 +420,145 @@ contract PersonhoodLending {
         offer.weeklyPayment = _newWeeklyPayment;
 
         emit OfferTermsUpdated(_offerId, oldPayment, _newWeeklyPayment, block.timestamp);
+    }
+
+    // ============ Dispute System ============
+
+    /**
+     * @notice Submit a dispute when lender does not respond off-chain
+     * @param _offerId ID of the offer
+     * @param _renterSignedRequest Renter's signed request for signature
+     * @param _expectedPayload The expected payload the lender should sign
+     */
+    function submitDispute(uint256 _offerId, bytes calldata _renterSignedRequest, bytes calldata _expectedPayload)
+        external
+        payable
+    {
+        Offer storage offer = offers[_offerId];
+
+        require(offer.submitter != address(0), "Offer does not exist");
+        require(offer.status == OfferStatus.ACTIVE, "Offer must be active");
+        require(offer.renter == msg.sender, "Only renter can submit dispute");
+        require(offer.activeDisputeId == 0, "Active dispute already exists");
+        require(bytes(_renterSignedRequest).length > 0, "Signed request cannot be empty");
+        require(bytes(_expectedPayload).length > 0, "Expected payload cannot be empty");
+
+        uint256 disputeDeposit = offer.deposit / 10;
+        require(msg.value == disputeDeposit, "Incorrect dispute deposit amount");
+
+        uint256 disputeId = nextDisputeId++;
+
+        disputes[disputeId] = Dispute({
+            disputeId: disputeId,
+            offerId: _offerId,
+            renter: msg.sender,
+            renterSignedRequest: _renterSignedRequest,
+            expectedPayload: _expectedPayload,
+            deadline: block.timestamp + DISPUTE_TIMEOUT,
+            status: DisputeStatus.PENDING,
+            createdAt: block.timestamp,
+            disputeDeposit: disputeDeposit
+        });
+
+        offer.activeDisputeId = disputeId;
+
+        emit DisputeSubmitted(disputeId, _offerId, msg.sender, disputes[disputeId].deadline, disputeDeposit);
+    }
+
+    /**
+     * @notice Submit signature to resolve dispute
+     * @param _disputeId ID of the dispute
+     * @param _signature The signature requested by renter
+     */
+    function submitSignature(uint256 _disputeId, bytes calldata _signature) external {
+        Dispute storage dispute = disputes[_disputeId];
+        Offer storage offer = offers[dispute.offerId];
+
+        require(dispute.createdAt != 0, "Dispute does not exist");
+        require(dispute.status == DisputeStatus.PENDING, "Dispute not pending");
+        require(offer.submitter == msg.sender, "Only lender can submit signature");
+        require(block.timestamp <= dispute.deadline, "Dispute deadline passed");
+        require(bytes(_signature).length > 0, "Signature cannot be empty");
+
+        dispute.status = DisputeStatus.RESOLVED_SIGNATURE;
+        offer.activeDisputeId = 0;
+
+        (bool success,) = payable(protocolTreasury).call{value: dispute.disputeDeposit}("");
+        require(success, "Deposit transfer to treasury failed");
+
+        emit SignatureSubmitted(_disputeId, dispute.offerId, _signature, block.timestamp);
+        emit DisputeResolved(_disputeId, dispute.offerId, DisputeStatus.RESOLVED_SIGNATURE, block.timestamp);
+    }
+
+    /**
+     * @notice Submit renter ACK to prove renter already received signature
+     * @param _disputeId ID of the dispute
+     * @param _renterAck Renter's ACK proving they received the signature
+     */
+    function submitRenterACK(uint256 _disputeId, bytes calldata _renterAck) external {
+        Dispute storage dispute = disputes[_disputeId];
+        Offer storage offer = offers[dispute.offerId];
+
+        require(dispute.createdAt != 0, "Dispute does not exist");
+        require(dispute.status == DisputeStatus.PENDING, "Dispute not pending");
+        require(offer.submitter == msg.sender, "Only lender can submit ACK");
+        require(block.timestamp <= dispute.deadline, "Dispute deadline passed");
+        require(bytes(_renterAck).length > 0, "ACK cannot be empty");
+
+        dispute.status = DisputeStatus.RESOLVED_ACK;
+        offer.activeDisputeId = 0;
+        offer.renterInvalidDisputes++;
+        address renter = offer.renter;
+        uint8 invalidDisputes = offer.renterInvalidDisputes;
+
+        (bool success,) = payable(protocolTreasury).call{value: dispute.disputeDeposit}("");
+        require(success, "Deposit transfer to treasury failed");
+
+        if (invalidDisputes >= MAX_INVALID_DISPUTES) {
+            _cancelRental(offer, dispute.offerId);
+        }
+
+        emit ACKSubmitted(_disputeId, dispute.offerId, _renterAck, block.timestamp);
+        emit DisputeResolved(_disputeId, dispute.offerId, DisputeStatus.RESOLVED_ACK, block.timestamp);
+        emit OffenceCounted(dispute.offerId, renter, invalidDisputes, 1);
+    }
+
+    /**
+     * @notice Resolve dispute after timeout - counts as lender offence
+     * @param _disputeId ID of the dispute to resolve
+     */
+    function resolveDisputeTimeout(uint256 _disputeId) external {
+        Dispute storage dispute = disputes[_disputeId];
+        Offer storage offer = offers[dispute.offerId];
+
+        require(dispute.createdAt != 0, "Dispute does not exist");
+        require(dispute.status == DisputeStatus.PENDING, "Dispute not pending");
+        require(block.timestamp > dispute.deadline, "Dispute deadline not yet passed");
+
+        dispute.status = DisputeStatus.TIMEOUT;
+        offer.activeDisputeId = 0;
+        offer.lenderOffences++;
+
+        (bool success,) = payable(dispute.renter).call{value: dispute.disputeDeposit}("");
+        require(success, "Deposit refund to renter failed");
+
+        emit DisputeResolved(_disputeId, dispute.offerId, DisputeStatus.TIMEOUT, block.timestamp);
+        emit OffenceCounted(dispute.offerId, offer.submitter, offer.lenderOffences, 0);
+    }
+
+    /**
+     * @notice Cancel rent after 3 lender offences and reclaim payment
+     * @param _offerId ID of the offer to cancel
+     */
+    function cancelRent(uint256 _offerId) external {
+        Offer storage offer = offers[_offerId];
+
+        require(offer.submitter != address(0), "Offer does not exist");
+        require(offer.renter == msg.sender, "Only renter can cancel");
+        require(offer.status == OfferStatus.ACTIVE || offer.status == OfferStatus.EXPIRED, "Invalid offer status");
+        require(offer.lenderOffences >= MAX_OFFENCES, "Not enough offences to cancel");
+        require(offer.activeDisputeId == 0, "Cannot cancel with active dispute");
+
+        _cancelRental(offer, _offerId);
     }
 }
