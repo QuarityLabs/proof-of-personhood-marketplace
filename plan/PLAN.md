@@ -183,41 +183,41 @@ Off-chain communication is the default, on-chain is only for dispute resolution.
 | Task ID | Milestone | Title | Status |
 |---------|-----------|-------|--------|
 | m1-task-1 | 1 | Redesign Data Structures | Complete |
-| m1-task-2 | 1 | Implement Core Functions | pending |
-| m1-task-3 | 1 | Implement Dispute System | pending |
-| m1-task-4 | 1 | Implement Core Events | pending |
-| m1-task-5 | 1 | Comprehensive Test Suite | pending |
-| m1-task-6 | 1 | Deployment Script Update | pending |
+| m1-task-2 | 1 | Implement Core Functions | Complete |
+| m1-task-3 | 1 | Implement Dispute System | Complete |
+| m1-task-4 | 1 | Implement Core Events | Complete |
+| m1-task-5 | 1 | Comprehensive Test Suite | Complete |
+| m1-task-6 | 1 | Deployment Script Update | Complete |
 
 ---
 
 ## Appendix B: Protocol Compliance Checklist
 
 ### Core Functions
-- [ ] createOffer - m1-task-2
-- [ ] acceptOffer - m1-task-2
-- [ ] renewRental - m1-task-2
-- [ ] returnToMarket - m1-task-2
-- [ ] removeExpiredOffer - m1-task-2
-- [ ] claimPayout - m1-task-2
-- [ ] updateOfferTerms - m1-task-2
+- [x] createOffer - m1-task-2
+- [x] acceptOffer - m1-task-2
+- [x] renewRental - m1-task-2
+- [x] returnToMarket - m1-task-2
+- [x] removeExpiredOffer - m1-task-2
+- [x] claimPayout - m1-task-2
+- [x] updateOfferTerms - m1-task-2
 
 ### Dispute Functions
-- [ ] submitDispute - m1-task-3
-- [ ] submitSignature - m1-task-3
-- [ ] submitRenterACK - m1-task-3
-- [ ] resolveDisputeTimeout - m1-task-3
-- [ ] cancelRent - m1-task-3
+- [x] submitDispute - m1-task-3
+- [x] submitSignature - m1-task-3
+- [x] submitRenterACK - m1-task-3
+- [x] resolveDisputeTimeout - m1-task-3
+- [x] cancelRent - m1-task-3
 
 ### Data Structures
-- [ ] Offer struct with all fields - m1-task-1
-- [ ] Dispute struct - m1-task-1
-- [ ] OfferStatus enum - m1-task-1
-- [ ] DisputeStatus enum - m1-task-1
+- [x] Offer struct with all fields - m1-task-1
+- [x] Dispute struct - m1-task-1
+- [x] OfferStatus enum - m1-task-1
+- [x] DisputeStatus enum - m1-task-1
 
 ### Events
-- [ ] OfferCreated, OfferAccepted, RentalRenewed, OfferExpired - m1-task-4
-- [ ] OfferReturnedToMarket, OfferRemoved, PayoutClaimed - m1-task-4
-- [ ] OfferTermsUpdated - m1-task-4
-- [ ] DisputeSubmitted, SignatureSubmitted, ACKSubmitted - m1-task-4
-- [ ] DisputeResolved, OffenceCounted, RentCancelled - m1-task-4
+- [x] OfferCreated, OfferAccepted, RentalRenewed, OfferExpired - m1-task-4
+- [x] OfferReturnedToMarket, OfferRemoved, PayoutClaimed - m1-task-4
+- [x] OfferTermsUpdated - m1-task-4
+- [x] DisputeSubmitted, SignatureSubmitted, ACKSubmitted - m1-task-4
+- [x] DisputeResolved, OffenceCounted, RentCancelled - m1-task-4
