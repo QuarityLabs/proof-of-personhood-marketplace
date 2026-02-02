@@ -273,7 +273,7 @@ mobile/src/
 | m1-task-3 | 1 | Implement Dispute System | ✅ Complete | #9, #11 |
 | m1-task-4 | 1 | Implement Core Events | ✅ Complete | #9 |
 | m1-task-5 | 1 | Comprehensive Test Suite | ✅ Complete | #12 |
-| m1-task-6 | 1 | Deployment Script Update | ✅ Complete | - |
+| m1-task-6 | 1 | Deployment Script Update | ✅ Complete | #8 |
 | web-impl | 2 | Web Marketplace UI | 🟡 Pending | - |
 | mobile-impl | 2 | Mobile Signer App | 🟡 Pending | - |
 
