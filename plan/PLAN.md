@@ -195,7 +195,7 @@ Off-chain communication is the default, on-chain is only for dispute resolution.
 ### 1.6 Deployment Script Update
 
 **Task ID:** m1-task-6  
-**Status:** ✅ Complete  
+**Status:** ✅ Complete (Part of PR #8)  
 **Scope:** Update deployment script for new contract
 
 **Deliverables:**
@@ -219,7 +219,7 @@ Off-chain communication is the default, on-chain is only for dispute resolution.
   - Dispute UI
 
 **File Structure:**
-```
+```text
 web/src/
 ├── App.tsx          # Win95-themed skeleton (93 lines)
 ├── main.tsx         # Entry point
@@ -248,7 +248,7 @@ web/src/
   - iOS/Android native directories
 
 **File Structure:**
-```
+```text
 mobile/src/
 ├── App.tsx          # Basic RN skeleton (43 lines)
 └── __tests__/       # Jest tests (minimal)
