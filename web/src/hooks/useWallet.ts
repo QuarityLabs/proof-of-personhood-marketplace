@@ -1,13 +1,17 @@
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
-import { injected } from 'wagmi/connectors';
 
 export function useWallet() {
   const { address, isConnected, isConnecting, status } = useAccount();
-  const { connect } = useConnect();
+  const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
 
   const connectWallet = () => {
-    connect({ connector: injected() });
+    const injectedConnector = connectors.find(
+      (c) => c.id === 'injected' || c.name?.toLowerCase().includes('metamask')
+    );
+    if (injectedConnector) {
+      connect({ connector: injectedConnector });
+    }
   };
 
   const disconnectWallet = () => {
