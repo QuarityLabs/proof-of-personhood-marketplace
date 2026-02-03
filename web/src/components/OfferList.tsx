@@ -1,8 +1,9 @@
 import React from 'react';
 import { Window, WindowHeader, WindowContent, Button, ScrollView } from 'react95';
 import styled from 'styled-components';
-import type { Offer } from '../types';
-import { OfferStatus, OFFER_STATUS_LABELS } from '../types';
+import { formatEther as viemFormatEther } from 'viem';
+import type { Offer } from '@/types';
+import { OfferStatus, OFFER_STATUS_LABELS } from '@/types';
 
 const OfferCard = styled(Window)`
   margin-bottom: 16px;
@@ -54,8 +55,8 @@ interface OfferListProps {
 }
 
 export const OfferList: React.FC<OfferListProps> = ({ offers, onRent, isLoading }) => {
-  const formatEther = (value: bigint) => {
-    return `${(Number(value) / 1e18).toFixed(4)} ETH`;
+  const formatEther = (value: bigint): string => {
+    return `${viemFormatEther(value)} ETH`;
   };
 
   const shortenAddress = (addr: string) => {

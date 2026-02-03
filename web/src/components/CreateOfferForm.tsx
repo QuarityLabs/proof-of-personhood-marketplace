@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Window, WindowHeader, WindowContent, Button, TextField } from 'react95';
 import styled from 'styled-components';
+import { parseEther } from 'viem';
 
 const FormGroup = styled.div`
   margin-bottom: 16px;
@@ -21,7 +22,7 @@ const ErrorMessage = styled.div`
 `;
 
 interface CreateOfferFormProps {
-  onSubmit: (context: string, weeklyPayment: string, deposit: string) => void;
+  onSubmit: (context: string, weeklyPayment: bigint, deposit: bigint) => void;
   isLoading?: boolean;
 }
 
@@ -38,12 +39,12 @@ export const CreateOfferForm: React.FC<CreateOfferFormProps> = ({ onSubmit, isLo
       newErrors.context = 'Usage context is required';
     }
 
-    if (!weeklyPayment || parseFloat(weeklyPayment) <= 0) {
-      newErrors.weeklyPayment = 'Weekly payment must be greater than 0';
+    if (!weeklyPayment) {
+      newErrors.weeklyPayment = 'Weekly payment is required';
     }
 
-    if (!deposit || parseFloat(deposit) <= 0) {
-      newErrors.deposit = 'Deposit must be greater than 0';
+    if (!deposit) {
+      newErrors.deposit = 'Deposit is required';
     }
 
     setErrors(newErrors);
@@ -51,8 +52,18 @@ export const CreateOfferForm: React.FC<CreateOfferFormProps> = ({ onSubmit, isLo
   };
 
   const handleSubmit = () => {
-    if (validate()) {
-      onSubmit(context, weeklyPayment, deposit);
+    if (!validate()) return;
+
+    try {
+      const weeklyWei = parseEther(weeklyPayment);
+      const depositWei = parseEther(deposit);
+      onSubmit(context, weeklyWei, depositWei);
+    } catch {
+      setErrors({
+        ...errors,
+        weeklyPayment: 'Invalid ETH amount',
+        deposit: 'Invalid ETH amount',
+      });
     }
   };
 

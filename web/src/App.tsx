@@ -53,14 +53,14 @@ const App = () => {
   const [myDisputes] = useState<Dispute[]>([]);
   const [isLoading] = useState(false);
 
-  const handleCreateOffer = (context: string, weeklyPayment: string, deposit: string) => {
+  const handleCreateOffer = (context: string, weeklyPayment: bigint, deposit: bigint) => {
     const newOffer: Offer = {
       offerId: BigInt(offers.length + 1),
       submitter: '0x0000000000000000000000000000000000000000' as `0x${string}`,
       renter: '0x0000000000000000000000000000000000000000' as `0x${string}`,
       usageContext: context,
-      weeklyPayment: BigInt(parseFloat(weeklyPayment) * 1e18),
-      deposit: BigInt(parseFloat(deposit) * 1e18),
+      weeklyPayment,
+      deposit,
       lockedPayment: 0n,
       createdAt: BigInt(Math.floor(Date.now() / 1000)),
       rentedAt: 0n,
