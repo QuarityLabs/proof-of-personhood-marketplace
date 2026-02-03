@@ -1,8 +1,8 @@
 import React from "react";
 import { Window, WindowHeader, WindowContent, Button, ScrollView, Tabs, Tab } from "react95";
 import styled from "styled-components";
-import type { Offer, Dispute } from "../types";
-import { OfferStatus, DISPUTE_STATUS_LABELS } from "../types";
+import type { Offer, Dispute } from "@/types";
+import { OfferStatus, DISPUTE_STATUS_LABELS } from "@/types";
 
 const DashboardGrid = styled.div`
   display: grid;
