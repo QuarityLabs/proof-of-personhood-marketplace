@@ -54,39 +54,62 @@ const App = () => {
   const [isLoading] = useState(false);
 
   const handleCreateOffer = (context: string, weeklyPayment: bigint, deposit: bigint) => {
-    const newOffer: Offer = {
-      offerId: BigInt(offers.length + 1),
-      submitter: '0x0000000000000000000000000000000000000000' as `0x${string}`,
-      renter: '0x0000000000000000000000000000000000000000' as `0x${string}`,
-      usageContext: context,
-      weeklyPayment,
-      deposit,
-      lockedPayment: 0n,
-      createdAt: BigInt(Math.floor(Date.now() / 1000)),
-      rentedAt: 0n,
-      expiresAt: 0n,
-      status: OfferStatus.PENDING,
-      totalRentals: 0n,
-      lenderOffences: 0,
-      renterInvalidDisputes: 0,
-      activeDisputeId: 0n,
-    };
-    setOffers([...offers, newOffer]);
-    setMyOffers([...myOffers, newOffer]);
+    setOffers((prev) => {
+      const newOffer: Offer = {
+        offerId: BigInt(prev.length + 1),
+        submitter: '0x0000000000000000000000000000000000000000' as `0x${string}`,
+        renter: '0x0000000000000000000000000000000000000000' as `0x${string}`,
+        usageContext: context,
+        weeklyPayment,
+        deposit,
+        lockedPayment: 0n,
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
+        rentedAt: 0n,
+        expiresAt: 0n,
+        status: OfferStatus.PENDING,
+        totalRentals: 0n,
+        lenderOffences: 0,
+        renterInvalidDisputes: 0,
+        activeDisputeId: 0n,
+      };
+      return [...prev, newOffer];
+    });
+    setMyOffers((prev) => {
+      const newOffer: Offer = {
+        offerId: BigInt(prev.length + 1),
+        submitter: '0x0000000000000000000000000000000000000000' as `0x${string}`,
+        renter: '0x0000000000000000000000000000000000000000' as `0x${string}`,
+        usageContext: context,
+        weeklyPayment,
+        deposit,
+        lockedPayment: 0n,
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
+        rentedAt: 0n,
+        expiresAt: 0n,
+        status: OfferStatus.PENDING,
+        totalRentals: 0n,
+        lenderOffences: 0,
+        renterInvalidDisputes: 0,
+        activeDisputeId: 0n,
+      };
+      return [...prev, newOffer];
+    });
     alert('Offer created successfully!');
   };
 
   const handleRent = (offerId: bigint) => {
-    const updatedOffers = offers.map(offer => 
-      offer.offerId === offerId 
-        ? { ...offer, status: OfferStatus.ACTIVE, rentedAt: BigInt(Math.floor(Date.now() / 1000)), expiresAt: BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60), lockedPayment: offer.weeklyPayment }
-        : offer
-    );
-    setOffers(updatedOffers);
-    const rentedOffer = updatedOffers.find(o => o.offerId === offerId);
-    if (rentedOffer) {
-      setMyRentals([...myRentals, rentedOffer]);
-    }
+    setOffers((prev) => {
+      const updatedOffers = prev.map((offer) =>
+        offer.offerId === offerId
+          ? { ...offer, status: OfferStatus.ACTIVE, rentedAt: BigInt(Math.floor(Date.now() / 1000)), expiresAt: BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60), lockedPayment: offer.weeklyPayment }
+          : offer
+      );
+      const rentedOffer = updatedOffers.find((o) => o.offerId === offerId);
+      if (rentedOffer) {
+        setMyRentals((prevRentals) => [...prevRentals, rentedOffer]);
+      }
+      return updatedOffers;
+    });
     alert('Rental started successfully!');
   };
 

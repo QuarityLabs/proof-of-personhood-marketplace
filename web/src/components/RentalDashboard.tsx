@@ -1,6 +1,7 @@
 import React from "react";
 import { Window, WindowHeader, WindowContent, Button, ScrollView, Tabs, Tab } from "react95";
 import styled from "styled-components";
+import { formatEther as viemFormatEther } from "viem";
 import type { Offer, Dispute } from "@/types";
 import { OfferStatus, DISPUTE_STATUS_LABELS } from "@/types";
 
@@ -55,8 +56,8 @@ export const RentalDashboard: React.FC<RentalDashboardProps> = ({
 }) => {
   const [activeTab, setActiveTab] = React.useState(0);
 
-  const formatEther = (value: bigint) => {
-    return `${(Number(value) / 1e18).toFixed(4)} ETH`;
+  const formatEther = (value: bigint): string => {
+    return `${parseFloat(viemFormatEther(value)).toFixed(4)} ETH`;
   };
 
   const formatDate = (timestamp: bigint) => {
