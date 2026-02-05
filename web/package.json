@@ -47,5 +47,8 @@
     "web",
     "proof-of-personhood"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=24.0.0"
+  }
 }
