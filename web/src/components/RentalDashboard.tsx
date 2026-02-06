@@ -57,7 +57,10 @@ export const RentalDashboard: React.FC<RentalDashboardProps> = ({
   const [activeTab, setActiveTab] = React.useState(0);
 
   const formatEther = (value: bigint): string => {
-    return `${parseFloat(viemFormatEther(value)).toFixed(4)} ETH`;
+    const etherString = viemFormatEther(value);
+    const [whole, decimal = ''] = etherString.split('.');
+    const truncatedDecimal = decimal.slice(0, 4).padEnd(4, '0');
+    return `${whole}.${truncatedDecimal} ETH`;
   };
 
   const formatDate = (timestamp: bigint) => {
