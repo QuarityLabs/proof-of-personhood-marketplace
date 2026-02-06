@@ -1,9 +1,19 @@
 import {defineConfig} from 'vite';
 import react from '@vitejs/plugin-react';
+import path from 'path';
+
+// Vercel deploys to root domain, GitHub Pages to subdirectory
+const isVercel = process.env.VERCEL === '1' || process.env.VERCEL === 'true';
+const base = isVercel ? '/' : '/proof-of-personhood-marketplace/';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/proof-of-personhood-marketplace/',
+  base,
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   server: {
     port: 3000,
     open: true,
