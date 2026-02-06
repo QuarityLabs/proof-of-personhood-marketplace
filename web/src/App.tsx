@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { createGlobalStyle, ThemeProvider } from 'styled-components';
 import { 
   styleReset, 
@@ -20,7 +20,7 @@ import ms_sans_serif_bold from 'react95/dist/fonts/ms_sans_serif_bold.woff2';
 
 import { config } from './services/wagmi';
 import { WalletConnect, OfferList, CreateOfferForm, RentalDashboard } from './components';
-import { useOffers, useRentals, useDisputes } from './hooks';
+import { useOffers, useRentals, useDisputes, useAllOffers } from './hooks';
 import type { Offer, Dispute } from './types';
 
 const GlobalStyles = createGlobalStyle`
@@ -53,59 +53,57 @@ const MarketplaceApp = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { isConnected } = useAccount();
+  const { address, isConnected } = useAccount();
   const { createOffer, isCreating } = useOffers();
   const { acceptOffer, isAccepting, renewRental, isRenewing, returnToMarket, isReturning, claimPayout, isClaiming, cancelRent, isCancelling } = useRentals();
   const { submitDispute, isSubmitting } = useDisputes();
+  const { offers: allOffersFromHook, refetch: refetchOffers } = useAllOffers();
 
-  const loadData = useCallback(async () => {
-    if (!isConnected) {
-      setOffers([]);
+  // Load offers from contract
+  useEffect(() => {
+    if (allOffersFromHook && allOffersFromHook.length > 0) {
+      setOffers(allOffersFromHook);
+    }
+  }, [allOffersFromHook]);
+
+  // Load user's offers and rentals when connected
+  useEffect(() => {
+    if (!isConnected || !address) {
       setMyOffers([]);
       setMyRentals([]);
       setMyDisputes([]);
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
+    const loadUserData = async () => {
+      setIsLoading(true);
+      try {
+        // Filter offers created by user
+        const userOffers = offers.filter(o => 
+          o.submitter.toLowerCase() === address.toLowerCase()
+        );
+        setMyOffers(userOffers);
 
-    try {
-      const { useOffers: getAllOffers } = await import('./hooks');
-      const { getMyRentals } = await import('./hooks').then(m => ({ getMyRentals: m.useRentals }));
-      const { getMyDisputes } = await import('./hooks').then(m => ({ getMyDisputes: m.useDisputes }));
+        // Filter offers rented by user
+        const userRentals = offers.filter(o => 
+          o.renter.toLowerCase() === address.toLowerCase()
+        );
+        setMyRentals(userRentals);
+      } catch (err) {
+        console.error('Error loading user data:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-      const offersHook = getAllOffers();
-      const rentalsHook = getMyRentals();
-      const disputesHook = getMyDisputes();
-
-      const [allOffers, userOffers, userRentals, userDisputes] = await Promise.all([
-        offersHook.getAllOffers(),
-        offersHook.getMyOffers(),
-        rentalsHook.getMyRentals(),
-        disputesHook.getMyDisputes(),
-      ]);
-
-      setOffers(allOffers);
-      setMyOffers(userOffers);
-      setMyRentals(userRentals);
-      setMyDisputes(userDisputes);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load data');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isConnected]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadUserData();
+  }, [isConnected, address, offers]);
 
   const handleCreateOffer = async (context: string, weeklyPayment: bigint, deposit: bigint) => {
     try {
       setError(null);
       await createOffer(context, weeklyPayment, deposit);
-      await loadData();
+      await refetchOffers();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create offer');
     }
@@ -118,7 +116,7 @@ const MarketplaceApp = () => {
       if (!offer) throw new Error('Offer not found');
       
       await acceptOffer(offerId, offer.deposit, offer.weeklyPayment);
-      await loadData();
+      await refetchOffers();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to rent offer');
     }
@@ -131,7 +129,7 @@ const MarketplaceApp = () => {
       if (!rental) throw new Error('Rental not found');
       
       await renewRental(offerId, rental.weeklyPayment);
-      await loadData();
+      await refetchOffers();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to renew rental');
     }
@@ -141,7 +139,7 @@ const MarketplaceApp = () => {
     try {
       setError(null);
       await returnToMarket(offerId);
-      await loadData();
+      await refetchOffers();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to return to market');
     }
@@ -151,7 +149,7 @@ const MarketplaceApp = () => {
     try {
       setError(null);
       await claimPayout(offerId);
-      await loadData();
+      await refetchOffers();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to claim payout');
     }
@@ -161,7 +159,7 @@ const MarketplaceApp = () => {
     try {
       setError(null);
       await cancelRent(offerId);
-      await loadData();
+      await refetchOffers();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to cancel rent');
     }
@@ -179,7 +177,7 @@ const MarketplaceApp = () => {
       
       const disputeDeposit = offer.deposit / 10n;
       await submitDispute(offerId, renterSignedRequest, expectedPayload, disputeDeposit);
-      await loadData();
+      await refetchOffers();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit dispute');
     }
