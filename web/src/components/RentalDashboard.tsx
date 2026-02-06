@@ -1,5 +1,5 @@
-import React from "react";
-import { Window, WindowHeader, WindowContent, Button, ScrollView, Tabs, Tab } from "react95";
+import React, { useState } from "react";
+import { Window, WindowHeader, WindowContent, Button, ScrollView, Tabs, Tab, TextField } from "react95";
 import styled from "styled-components";
 import { formatEther as viemFormatEther } from "viem";
 import type { Offer, Dispute } from "@/types";
@@ -33,6 +33,21 @@ const ActionButton = styled(Button)`
   margin-top: 8px;
 `;
 
+const DisputeForm = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px;
+  background: ${({ theme }) => theme.canvas};
+  border: 1px solid ${({ theme }) => theme.borderDark};
+`;
+
+const Label = styled.label`
+  font-size: 11px;
+  font-family: "ms_sans_serif";
+`;
+
 interface RentalDashboardProps {
   myOffers: Offer[];
   myRentals: Offer[];
@@ -41,6 +56,7 @@ interface RentalDashboardProps {
   onReturn?: (offerId: bigint) => void;
   onClaim?: (offerId: bigint) => void;
   onCancel?: (offerId: bigint) => void;
+  onSubmitDispute?: (offerId: bigint, signedRequest: `0x${string}`, expectedPayload: `0x${string}`) => void;
   isLoading?: boolean;
 }
 
@@ -52,14 +68,18 @@ export const RentalDashboard: React.FC<RentalDashboardProps> = ({
   onReturn,
   onClaim,
   onCancel,
+  onSubmitDispute,
   isLoading,
 }) => {
   const [activeTab, setActiveTab] = React.useState(0);
+  const [disputeOfferId, setDisputeOfferId] = React.useState<bigint | null>(null);
+  const [signedRequest, setSignedRequest] = useState("");
+  const [expectedPayload, setExpectedPayload] = useState("");
 
   const formatEther = (value: bigint): string => {
     const etherString = viemFormatEther(value);
-    const [whole, decimal = ''] = etherString.split('.');
-    const truncatedDecimal = decimal.slice(0, 4).padEnd(4, '0');
+    const [whole, decimal = ""] = etherString.split(".");
+    const truncatedDecimal = decimal.slice(0, 4).padEnd(4, "0");
     return `${whole}.${truncatedDecimal} ETH`;
   };
 
@@ -71,6 +91,19 @@ export const RentalDashboard: React.FC<RentalDashboardProps> = ({
   const shortenAddress = (addr: string) => {
     if (!addr || addr === "0x0000000000000000000000000000000000000000") return "None";
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  };
+
+  const handleSubmitDispute = () => {
+    if (disputeOfferId && onSubmitDispute && signedRequest && expectedPayload) {
+      onSubmitDispute(
+        disputeOfferId,
+        signedRequest as `0x${string}`,
+        expectedPayload as `0x${string}`
+      );
+      setDisputeOfferId(null);
+      setSignedRequest("");
+      setExpectedPayload("");
+    }
   };
 
   const renderOffers = () => {
@@ -89,8 +122,10 @@ export const RentalDashboard: React.FC<RentalDashboardProps> = ({
               <DetailRow><span>Locked:</span><span>{formatEther(offer.lockedPayment)}</span></DetailRow>
               <DetailRow><span>Renter:</span><span>{shortenAddress(offer.renter)}</span></DetailRow>
               <DetailRow><span>Offences:</span><span>{offer.lenderOffences}</span></DetailRow>
-              {offer.status === OfferStatus.EXPIRED && offer.lockedPayment > 0 && onClaim && (
-                <ActionButton onClick={() => onClaim(offer.offerId)} fullWidth>Claim Payout</ActionButton>
+              {offer.status === OfferStatus.EXPIRED && offer.lockedPayment > 0n && onClaim && (
+                <ActionButton onClick={() => onClaim(offer.offerId)} fullWidth disabled={isLoading}>
+                  Claim Payout
+                </ActionButton>
               )}
             </WindowContent>
           </OfferCard>
@@ -114,14 +149,59 @@ export const RentalDashboard: React.FC<RentalDashboardProps> = ({
               <DetailRow><span>Expires:</span><span>{formatDate(rental.expiresAt)}</span></DetailRow>
               <DetailRow><span>Locked:</span><span>{formatEther(rental.lockedPayment)}</span></DetailRow>
               <DetailRow><span>Offences:</span><span>{rental.lenderOffences}/3</span></DetailRow>
-              {rental.lenderOffences >= 3 && onCancel && (
-                <ActionButton onClick={() => onCancel(rental.offerId)} fullWidth>Cancel and Refund</ActionButton>
-              )}
-              {rental.status === OfferStatus.ACTIVE && onRenew && (
-                <ActionButton onClick={() => onRenew(rental.offerId)} fullWidth>Renew Rental</ActionButton>
-              )}
-              {rental.status === OfferStatus.EXPIRED && onReturn && (
-                <ActionButton onClick={() => onReturn(rental.offerId)} fullWidth>Return to Market</ActionButton>
+              
+              {disputeOfferId === rental.offerId && onSubmitDispute ? (
+                <DisputeForm>
+                  <Label>Submit Dispute:</Label>
+                  <TextField
+                    placeholder="Signed Request (0x...)"
+                    value={signedRequest}
+                    onChange={(e) => setSignedRequest(e.target.value)}
+                    fullWidth
+                  />
+                  <TextField
+                    placeholder="Expected Payload (0x...)"
+                    value={expectedPayload}
+                    onChange={(e) => setExpectedPayload(e.target.value)}
+                    fullWidth
+                  />
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <Button onClick={handleSubmitDispute} disabled={isLoading || !signedRequest || !expectedPayload}>
+                      Submit
+                    </Button>
+                    <Button onClick={() => setDisputeOfferId(null)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </DisputeForm>
+              ) : (
+                <>
+                  {rental.lenderOffences >= 3 && onCancel && (
+                    <ActionButton onClick={() => onCancel(rental.offerId)} fullWidth disabled={isLoading}>
+                      Cancel and Refund
+                    </ActionButton>
+                  )}
+                  {rental.status === OfferStatus.ACTIVE && onRenew && (
+                    <ActionButton onClick={() => onRenew(rental.offerId)} fullWidth disabled={isLoading}>
+                      Renew Rental
+                    </ActionButton>
+                  )}
+                  {rental.status === OfferStatus.EXPIRED && onReturn && (
+                    <ActionButton onClick={() => onReturn(rental.offerId)} fullWidth disabled={isLoading}>
+                      Return to Market
+                    </ActionButton>
+                  )}
+                  {rental.status === OfferStatus.ACTIVE && onSubmitDispute && rental.activeDisputeId === 0n && (
+                    <ActionButton onClick={() => setDisputeOfferId(rental.offerId)} fullWidth disabled={isLoading}>
+                      Submit Dispute
+                    </ActionButton>
+                  )}
+                  {rental.activeDisputeId !== 0n && (
+                    <div style={{ marginTop: "8px", fontSize: "11px", color: "#ff6600" }}>
+                      Active Dispute: #{rental.activeDisputeId.toString()}
+                    </div>
+                  )}
+                </>
               )}
             </WindowContent>
           </OfferCard>
