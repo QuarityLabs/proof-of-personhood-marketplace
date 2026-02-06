@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useAccount, useWriteContract } from 'wagmi';
+import { useAccount, useReadContract, useWriteContract } from 'wagmi';
 import { PERSONHOOD_LENDING_ABI, PERSONHOOD_LENDING_ADDRESS } from '../abi/PersonhoodLending';
 import type { Dispute } from '../types';
 
@@ -56,10 +56,17 @@ export function useDisputes() {
     });
   }, [writeContractAsync]);
 
+  const { data: nextDisputeIdData } = useReadContract({
+    ...CONTRACT_CONFIG,
+    functionName: 'nextDisputeId',
+  });
+
+  const nextDisputeId = nextDisputeIdData as bigint | undefined;
+
   const getMyDisputes = useCallback(async (): Promise<Dispute[]> => {
-    if (!address) return [];
+    if (!address || !nextDisputeId) return [];
     return [];
-  }, [address]);
+  }, [address, nextDisputeId]);
 
   const getOfferDispute = useCallback(async (): Promise<Dispute | null> => {
     return null;
@@ -76,16 +83,56 @@ export function useDisputes() {
     isSubmittingACK: isPending,
     resolveDisputeTimeout,
     isResolving: isPending,
+    nextDisputeId,
     getMyDisputes,
     getOfferDispute,
   };
 }
 
-export function useContractConstants() {
+export function useDispute(disputeId: bigint | undefined) {
+  const { data, isLoading, error, refetch } = useReadContract({
+    ...CONTRACT_CONFIG,
+    functionName: 'disputes',
+    args: disputeId !== undefined ? [disputeId] : undefined,
+    query: {
+      enabled: disputeId !== undefined,
+    },
+  });
+
+  const typedData = data as readonly [
+    bigint, bigint, `0x${string}`, `0x${string}`, `0x${string}`, bigint, number, bigint, bigint
+  ] | undefined;
+
+  const dispute: Dispute | undefined = typedData ? {
+    disputeId: typedData[0],
+    offerId: typedData[1],
+    renter: typedData[2],
+    renterSignedRequest: typedData[3],
+    expectedPayload: typedData[4],
+    deadline: typedData[5],
+    status: typedData[6] as 0 | 1 | 2 | 3,
+    createdAt: typedData[7],
+    disputeDeposit: typedData[8],
+  } : undefined;
+
   return {
-    minDeposit: undefined as bigint | undefined,
-    minWeeklyPayment: undefined as bigint | undefined,
-    disputeTimeout: undefined as bigint | undefined,
-    maxOffences: undefined as bigint | undefined,
+    dispute,
+    isLoading,
+    error,
+    refetch,
+  };
+}
+
+export function useProtocolTreasury() {
+  const { data, isLoading, error, refetch } = useReadContract({
+    ...CONTRACT_CONFIG,
+    functionName: 'protocolTreasury',
+  });
+
+  return {
+    protocolTreasury: data as `0x${string}` | undefined,
+    isLoading,
+    error,
+    refetch,
   };
 }
