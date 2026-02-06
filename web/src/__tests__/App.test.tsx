@@ -14,13 +14,10 @@ describe('App', () => {
     expect(screen.getByText('Connect Wallet')).toBeInTheDocument();
   });
 
-  it('renders create offer form', () => {
+  it('shows info message when wallet not connected', () => {
     render(<App />);
-    expect(screen.getByText('create_offer.exe')).toBeInTheDocument();
-    expect(screen.getByText('Usage Context:')).toBeInTheDocument();
-    expect(screen.getByText('Weekly Payment (ETH):')).toBeInTheDocument();
-    expect(screen.getByText('Deposit (ETH):')).toBeInTheDocument();
-    expect(screen.getByText('Create Offer')).toBeInTheDocument();
+    expect(screen.getByText('Info')).toBeInTheDocument();
+    expect(screen.getByText('Connect wallet to create offers and rent personhood.')).toBeInTheDocument();
   });
 
   it('renders offer list section', () => {
