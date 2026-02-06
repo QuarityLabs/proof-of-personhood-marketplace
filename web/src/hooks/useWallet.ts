@@ -2,15 +2,29 @@ import { useAccount, useConnect, useDisconnect } from 'wagmi';
 
 export function useWallet() {
   const { address, isConnected, isConnecting, status } = useAccount();
-  const { connect, connectors } = useConnect();
+  const { connect, connectors, error: connectError } = useConnect();
   const { disconnect } = useDisconnect();
 
-  const connectWallet = () => {
+  const connectWallet = async () => {
+    const ethereum = (window as unknown as { ethereum?: { request: (args: unknown) => Promise<unknown> } }).ethereum;
+    if (typeof window === 'undefined' || !ethereum) {
+      alert('No Ethereum wallet found. Please install MetaMask or another wallet.');
+      return;
+    }
+
     const injectedConnector = connectors.find(
       (c) => c.id === 'injected' || c.name?.toLowerCase().includes('metamask')
     );
+    
     if (injectedConnector) {
-      connect({ connector: injectedConnector });
+      try {
+        await connect({ connector: injectedConnector });
+      } catch (err) {
+        console.error('Failed to connect wallet:', err);
+        alert('Failed to connect wallet. Please make sure your wallet is unlocked.');
+      }
+    } else {
+      alert('No injected wallet connector found.');
     }
   };
 
@@ -28,6 +42,7 @@ export function useWallet() {
     isConnected,
     isConnecting,
     status,
+    connectError,
     connectWallet,
     disconnectWallet,
     shortenAddress,
