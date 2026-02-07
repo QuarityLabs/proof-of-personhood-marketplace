@@ -12,6 +12,93 @@ export const PERSONHOOD_LENDING_ABI = [
     inputs: [{ name: '_protocolTreasury', type: 'address', internalType: 'address' }],
     stateMutability: 'nonpayable',
   },
+  // ============ Constants (public) ============
+  {
+    type: 'function',
+    name: 'MIN_DEPOSIT',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'MIN_WEEKLY_PAYMENT',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'GRACE_PERIOD',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'DISPUTE_TIMEOUT',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'OFFENCE_PENALTY_PERCENTAGE',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'BASIS_POINTS',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'RENTAL_DURATION',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'MAX_OFFENCES',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'MAX_INVALID_DISPUTES',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],
+    stateMutability: 'view',
+  },
+  // ============ State Variables (public) ============
+  {
+    type: 'function',
+    name: 'nextOfferId',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'nextDisputeId',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'protocolTreasury',
+    inputs: [],
+    outputs: [{ name: '', type: 'address', internalType: 'address' }],
+    stateMutability: 'view',
+  },
+  // ============ Core Functions ============
   {
     type: 'function',
     name: 'acceptOffer',
@@ -173,6 +260,7 @@ export const PERSONHOOD_LENDING_ABI = [
     outputs: [],
     stateMutability: 'nonpayable',
   },
+  // ============ Events ============
   {
     type: 'event',
     name: 'ACKSubmitted',
