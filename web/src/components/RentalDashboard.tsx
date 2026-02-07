@@ -5,6 +5,10 @@ import { formatEther as viemFormatEther } from "viem";
 import type { Offer, Dispute } from "@/types";
 import { OfferStatus, DISPUTE_STATUS_LABELS } from "@/types";
 
+const isValidHex = (value: string): value is `0x${string}` => {
+  return /^0x[a-fA-F0-9]+$/.test(value);
+};
+
 const DashboardGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -95,10 +99,14 @@ export const RentalDashboard: React.FC<RentalDashboardProps> = ({
 
   const handleSubmitDispute = () => {
     if (disputeOfferId && onSubmitDispute && signedRequest && expectedPayload) {
+      if (!isValidHex(signedRequest) || !isValidHex(expectedPayload)) {
+        alert("Please enter valid hex strings starting with 0x");
+        return;
+      }
       onSubmitDispute(
         disputeOfferId,
-        signedRequest as `0x${string}`,
-        expectedPayload as `0x${string}`
+        signedRequest,
+        expectedPayload
       );
       setDisputeOfferId(null);
       setSignedRequest("");

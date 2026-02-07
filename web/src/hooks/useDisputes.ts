@@ -10,7 +10,12 @@ const CONTRACT_CONFIG = {
 
 export function useDisputes() {
   const { address } = useAccount();
-  const { writeContractAsync, isPending, error, isSuccess } = useWriteContract();
+  
+  // Separate write contract hooks for each operation
+  const submitMutation = useWriteContract();
+  const signatureMutation = useWriteContract();
+  const ackMutation = useWriteContract();
+  const resolveMutation = useWriteContract();
 
   const submitDispute = useCallback(async (
     offerId: bigint,
@@ -18,43 +23,43 @@ export function useDisputes() {
     expectedPayload: `0x${string}`,
     disputeDeposit: bigint
   ) => {
-    return writeContractAsync({
+    return submitMutation.writeContractAsync({
       ...CONTRACT_CONFIG,
       functionName: 'submitDispute',
       args: [offerId, renterSignedRequest, expectedPayload],
       value: disputeDeposit,
     });
-  }, [writeContractAsync]);
+  }, [submitMutation]);
 
   const submitSignature = useCallback(async (
     disputeId: bigint,
     signature: `0x${string}`
   ) => {
-    return writeContractAsync({
+    return signatureMutation.writeContractAsync({
       ...CONTRACT_CONFIG,
       functionName: 'submitSignature',
       args: [disputeId, signature],
     });
-  }, [writeContractAsync]);
+  }, [signatureMutation]);
 
   const submitRenterACK = useCallback(async (
     disputeId: bigint,
     renterAck: `0x${string}`
   ) => {
-    return writeContractAsync({
+    return ackMutation.writeContractAsync({
       ...CONTRACT_CONFIG,
       functionName: 'submitRenterACK',
       args: [disputeId, renterAck],
     });
-  }, [writeContractAsync]);
+  }, [ackMutation]);
 
   const resolveDisputeTimeout = useCallback(async (disputeId: bigint) => {
-    return writeContractAsync({
+    return resolveMutation.writeContractAsync({
       ...CONTRACT_CONFIG,
       functionName: 'resolveDisputeTimeout',
       args: [disputeId],
     });
-  }, [writeContractAsync]);
+  }, [resolveMutation]);
 
   const { data: nextDisputeIdData } = useReadContract({
     ...CONTRACT_CONFIG,
@@ -74,15 +79,21 @@ export function useDisputes() {
 
   return {
     submitDispute,
-    isSubmitting: isPending,
-    submitError: error,
-    isSubmitSuccess: isSuccess,
+    isSubmitting: submitMutation.isPending,
+    submitError: submitMutation.error,
+    isSubmitSuccess: submitMutation.isSuccess,
     submitSignature,
-    isSubmittingSignature: isPending,
+    isSubmittingSignature: signatureMutation.isPending,
+    signatureError: signatureMutation.error,
+    isSignatureSuccess: signatureMutation.isSuccess,
     submitRenterACK,
-    isSubmittingACK: isPending,
+    isSubmittingACK: ackMutation.isPending,
+    ackError: ackMutation.error,
+    isAckSuccess: ackMutation.isSuccess,
     resolveDisputeTimeout,
-    isResolving: isPending,
+    isResolving: resolveMutation.isPending,
+    resolveError: resolveMutation.error,
+    isResolveSuccess: resolveMutation.isSuccess,
     nextDisputeId,
     getMyDisputes,
     getOfferDispute,

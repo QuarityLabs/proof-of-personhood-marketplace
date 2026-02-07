@@ -10,7 +10,13 @@ const CONTRACT_CONFIG = {
 
 export function useRentals() {
   const { address } = useAccount();
-  const { writeContractAsync, isPending, error, isSuccess } = useWriteContract();
+  
+  // Separate write contract hooks for each operation
+  const acceptMutation = useWriteContract();
+  const renewMutation = useWriteContract();
+  const returnMutation = useWriteContract();
+  const claimMutation = useWriteContract();
+  const cancelMutation = useWriteContract();
 
   const acceptOffer = useCallback(async (
     offerId: bigint,
@@ -18,49 +24,49 @@ export function useRentals() {
     weeklyPayment: bigint
   ) => {
     const totalValue = deposit + weeklyPayment;
-    return writeContractAsync({
+    return acceptMutation.writeContractAsync({
       ...CONTRACT_CONFIG,
       functionName: 'acceptOffer',
       args: [offerId],
       value: totalValue,
     });
-  }, [writeContractAsync]);
+  }, [acceptMutation]);
 
   const renewRental = useCallback(async (
     offerId: bigint,
     weeklyPayment: bigint
   ) => {
-    return writeContractAsync({
+    return renewMutation.writeContractAsync({
       ...CONTRACT_CONFIG,
       functionName: 'renewRental',
       args: [offerId],
       value: weeklyPayment,
     });
-  }, [writeContractAsync]);
+  }, [renewMutation]);
 
   const returnToMarket = useCallback(async (offerId: bigint) => {
-    return writeContractAsync({
+    return returnMutation.writeContractAsync({
       ...CONTRACT_CONFIG,
       functionName: 'returnToMarket',
       args: [offerId],
     });
-  }, [writeContractAsync]);
+  }, [returnMutation]);
 
   const claimPayout = useCallback(async (offerId: bigint) => {
-    return writeContractAsync({
+    return claimMutation.writeContractAsync({
       ...CONTRACT_CONFIG,
       functionName: 'claimPayout',
       args: [offerId],
     });
-  }, [writeContractAsync]);
+  }, [claimMutation]);
 
   const cancelRent = useCallback(async (offerId: bigint) => {
-    return writeContractAsync({
+    return cancelMutation.writeContractAsync({
       ...CONTRACT_CONFIG,
       functionName: 'cancelRent',
       args: [offerId],
     });
-  }, [writeContractAsync]);
+  }, [cancelMutation]);
 
   const { data: nextOfferIdData } = useReadContract({
     ...CONTRACT_CONFIG,
@@ -76,17 +82,25 @@ export function useRentals() {
 
   return {
     acceptOffer,
-    isAccepting: isPending,
-    acceptError: error,
-    isAcceptSuccess: isSuccess,
+    isAccepting: acceptMutation.isPending,
+    acceptError: acceptMutation.error,
+    isAcceptSuccess: acceptMutation.isSuccess,
     renewRental,
-    isRenewing: isPending,
+    isRenewing: renewMutation.isPending,
+    renewError: renewMutation.error,
+    isRenewSuccess: renewMutation.isSuccess,
     returnToMarket,
-    isReturning: isPending,
+    isReturning: returnMutation.isPending,
+    returnError: returnMutation.error,
+    isReturnSuccess: returnMutation.isSuccess,
     claimPayout,
-    isClaiming: isPending,
+    isClaiming: claimMutation.isPending,
+    claimError: claimMutation.error,
+    isClaimSuccess: claimMutation.isSuccess,
     cancelRent,
-    isCancelling: isPending,
+    isCancelling: cancelMutation.isPending,
+    cancelError: cancelMutation.error,
+    isCancelSuccess: cancelMutation.isSuccess,
     nextOfferId,
     getMyRentals,
   };
@@ -133,7 +147,12 @@ export function useRental(offerId: bigint | undefined) {
 }
 
 export function useActiveDispute(offerId: bigint | undefined) {
-  const { data: offerData } = useReadContract({
+  const { 
+    data: offerData, 
+    isLoading: isOfferLoading, 
+    error: offerError, 
+    refetch: refetchOffer 
+  } = useReadContract({
     ...CONTRACT_CONFIG,
     functionName: 'offers',
     args: offerId !== undefined ? [offerId] : undefined,
@@ -148,7 +167,12 @@ export function useActiveDispute(offerId: bigint | undefined) {
 
   const activeDisputeId = typedOfferData ? typedOfferData[14] : undefined;
 
-  const { data: disputeData, isLoading, error, refetch } = useReadContract({
+  const { 
+    data: disputeData, 
+    isLoading: isDisputeLoading, 
+    error: disputeError, 
+    refetch: refetchDispute 
+  } = useReadContract({
     ...CONTRACT_CONFIG,
     functionName: 'disputes',
     args: activeDisputeId !== undefined && activeDisputeId !== 0n ? [activeDisputeId] : undefined,
@@ -176,9 +200,12 @@ export function useActiveDispute(offerId: bigint | undefined) {
   return {
     dispute,
     activeDisputeId,
-    isLoading,
-    error,
-    refetch,
+    isLoading: isOfferLoading || isDisputeLoading,
+    error: offerError || disputeError,
+    refetch: async () => {
+      await refetchOffer();
+      await refetchDispute();
+    },
   };
 }
 

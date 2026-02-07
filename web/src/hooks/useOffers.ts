@@ -10,38 +10,42 @@ const CONTRACT_CONFIG = {
 
 export function useOffers() {
   const { address } = useAccount();
-  const { writeContractAsync, isPending, error, isSuccess } = useWriteContract();
+  
+  // Separate write contract hooks for each operation to track independent states
+  const createMutation = useWriteContract();
+  const updateMutation = useWriteContract();
+  const removeMutation = useWriteContract();
 
   const createOffer = useCallback(async (
     usageContext: string,
     weeklyPayment: bigint,
     deposit: bigint
   ) => {
-    return writeContractAsync({
+    return createMutation.writeContractAsync({
       ...CONTRACT_CONFIG,
       functionName: 'createOffer',
       args: [usageContext, weeklyPayment, deposit],
     });
-  }, [writeContractAsync]);
+  }, [createMutation]);
 
   const updateOfferTerms = useCallback(async (
     offerId: bigint,
     newWeeklyPayment: bigint
   ) => {
-    return writeContractAsync({
+    return updateMutation.writeContractAsync({
       ...CONTRACT_CONFIG,
       functionName: 'updateOfferTerms',
       args: [offerId, newWeeklyPayment],
     });
-  }, [writeContractAsync]);
+  }, [updateMutation]);
 
   const removeExpiredOffer = useCallback(async (offerId: bigint) => {
-    return writeContractAsync({
+    return removeMutation.writeContractAsync({
       ...CONTRACT_CONFIG,
       functionName: 'removeExpiredOffer',
       args: [offerId],
     });
-  }, [writeContractAsync]);
+  }, [removeMutation]);
 
   const { data: nextOfferIdData, refetch: refetchNextOfferId } = useReadContract({
     ...CONTRACT_CONFIG,
@@ -66,13 +70,17 @@ export function useOffers() {
 
   return {
     createOffer,
-    isCreating: isPending,
-    createError: error,
-    isCreateSuccess: isSuccess,
+    isCreating: createMutation.isPending,
+    createError: createMutation.error,
+    isCreateSuccess: createMutation.isSuccess,
     updateOfferTerms,
-    isUpdating: isPending,
+    isUpdating: updateMutation.isPending,
+    updateError: updateMutation.error,
+    isUpdateSuccess: updateMutation.isSuccess,
     removeExpiredOffer,
-    isRemoving: isPending,
+    isRemoving: removeMutation.isPending,
+    removeError: removeMutation.error,
+    isRemoveSuccess: removeMutation.isSuccess,
     nextOfferId,
     refetchNextOfferId,
     getAllOffers,
@@ -134,23 +142,18 @@ export function useAllOffers() {
 
   const fetchAllOffers = useCallback(async () => {
     if (!nextOfferId) return;
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      const count = Number(nextOfferId);
       const fetchedOffers: Offer[] = [];
-      
-      for (let i = 0; i < count; i++) {
-        try {
-          const response = await fetch('data:application/json;base64,eyJzdWNjZXNzIjp0cnVlfQ==');
-          await response.json();
-        } catch {
-          continue;
-        }
-      }
-      
+
+      // TODO: Implement actual contract reads for each offer
+      // This requires calling the contract for each offer ID (0 to Number(nextOfferId)-1)
+      // Consider using wagmi's useReadContracts for batching or implementing a multicall pattern
+      // For now, this returns an empty array as the hook structure is in place
+
       setOffers(fetchedOffers);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch offers'));

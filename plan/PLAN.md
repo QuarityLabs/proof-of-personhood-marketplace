@@ -274,7 +274,7 @@ mobile/src/
 | m1-task-4 | 1 | Implement Core Events | ✅ Complete | #9 |
 | m1-task-5 | 1 | Comprehensive Test Suite | ✅ Complete | #12 |
 | m1-task-6 | 1 | Deployment Script Update | ✅ Complete | #8 |
-| web-impl | 2 | Web Marketplace UI | ✅ Complete | #13 |
+| web-impl | 2 | Web Marketplace UI | ✅ Complete | #17 |
 | mobile-impl | 2 | Mobile Signer App | 🟡 Pending | - |
 
 ---
@@ -282,7 +282,7 @@ mobile/src/
 ## Milestone 2: Web Marketplace UI ✅ COMPLETE
 
 **Status:** Implementation complete (2026-02-07)  
-**PR:** #13  
+**PR:** #17  
 **Goal:** Full marketplace interface with real blockchain integration for Protocol v2.0
 
 ### Implementation Summary
