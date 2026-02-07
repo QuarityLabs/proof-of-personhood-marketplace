@@ -12,11 +12,11 @@ export function useRentals() {
   const { address } = useAccount();
   
   // Separate write contract hooks for each operation
-  const acceptMutation = useWriteContract();
-  const renewMutation = useWriteContract();
-  const returnMutation = useWriteContract();
-  const claimMutation = useWriteContract();
-  const cancelMutation = useWriteContract();
+  const { writeContractAsync: acceptWrite, ...acceptMutation } = useWriteContract();
+  const { writeContractAsync: renewWrite, ...renewMutation } = useWriteContract();
+  const { writeContractAsync: returnWrite, ...returnMutation } = useWriteContract();
+  const { writeContractAsync: claimWrite, ...claimMutation } = useWriteContract();
+  const { writeContractAsync: cancelWrite, ...cancelMutation } = useWriteContract();
 
   const acceptOffer = useCallback(async (
     offerId: bigint,
@@ -24,49 +24,49 @@ export function useRentals() {
     weeklyPayment: bigint
   ) => {
     const totalValue = deposit + weeklyPayment;
-    return acceptMutation.writeContractAsync({
+    return acceptWrite({
       ...CONTRACT_CONFIG,
       functionName: 'acceptOffer',
       args: [offerId],
       value: totalValue,
     });
-  }, [acceptMutation]);
+  }, [acceptWrite]);
 
   const renewRental = useCallback(async (
     offerId: bigint,
     weeklyPayment: bigint
   ) => {
-    return renewMutation.writeContractAsync({
+    return renewWrite({
       ...CONTRACT_CONFIG,
       functionName: 'renewRental',
       args: [offerId],
       value: weeklyPayment,
     });
-  }, [renewMutation]);
+  }, [renewWrite]);
 
   const returnToMarket = useCallback(async (offerId: bigint) => {
-    return returnMutation.writeContractAsync({
+    return returnWrite({
       ...CONTRACT_CONFIG,
       functionName: 'returnToMarket',
       args: [offerId],
     });
-  }, [returnMutation]);
+  }, [returnWrite]);
 
   const claimPayout = useCallback(async (offerId: bigint) => {
-    return claimMutation.writeContractAsync({
+    return claimWrite({
       ...CONTRACT_CONFIG,
       functionName: 'claimPayout',
       args: [offerId],
     });
-  }, [claimMutation]);
+  }, [claimWrite]);
 
   const cancelRent = useCallback(async (offerId: bigint) => {
-    return cancelMutation.writeContractAsync({
+    return cancelWrite({
       ...CONTRACT_CONFIG,
       functionName: 'cancelRent',
       args: [offerId],
     });
-  }, [cancelMutation]);
+  }, [cancelWrite]);
 
   const { data: nextOfferIdData } = useReadContract({
     ...CONTRACT_CONFIG,

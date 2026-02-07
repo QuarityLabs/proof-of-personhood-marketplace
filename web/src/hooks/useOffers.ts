@@ -12,40 +12,40 @@ export function useOffers() {
   const { address } = useAccount();
   
   // Separate write contract hooks for each operation to track independent states
-  const createMutation = useWriteContract();
-  const updateMutation = useWriteContract();
-  const removeMutation = useWriteContract();
+  const { writeContractAsync: createWrite, ...createMutation } = useWriteContract();
+  const { writeContractAsync: updateWrite, ...updateMutation } = useWriteContract();
+  const { writeContractAsync: removeWrite, ...removeMutation } = useWriteContract();
 
   const createOffer = useCallback(async (
     usageContext: string,
     weeklyPayment: bigint,
     deposit: bigint
   ) => {
-    return createMutation.writeContractAsync({
+    return createWrite({
       ...CONTRACT_CONFIG,
       functionName: 'createOffer',
       args: [usageContext, weeklyPayment, deposit],
     });
-  }, [createMutation]);
+  }, [createWrite]);
 
   const updateOfferTerms = useCallback(async (
     offerId: bigint,
     newWeeklyPayment: bigint
   ) => {
-    return updateMutation.writeContractAsync({
+    return updateWrite({
       ...CONTRACT_CONFIG,
       functionName: 'updateOfferTerms',
       args: [offerId, newWeeklyPayment],
     });
-  }, [updateMutation]);
+  }, [updateWrite]);
 
   const removeExpiredOffer = useCallback(async (offerId: bigint) => {
-    return removeMutation.writeContractAsync({
+    return removeWrite({
       ...CONTRACT_CONFIG,
       functionName: 'removeExpiredOffer',
       args: [offerId],
     });
-  }, [removeMutation]);
+  }, [removeWrite]);
 
   const { data: nextOfferIdData, refetch: refetchNextOfferId } = useReadContract({
     ...CONTRACT_CONFIG,

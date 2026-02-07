@@ -12,10 +12,10 @@ export function useDisputes() {
   const { address } = useAccount();
   
   // Separate write contract hooks for each operation
-  const submitMutation = useWriteContract();
-  const signatureMutation = useWriteContract();
-  const ackMutation = useWriteContract();
-  const resolveMutation = useWriteContract();
+  const { writeContractAsync: submitWrite, ...submitMutation } = useWriteContract();
+  const { writeContractAsync: signatureWrite, ...signatureMutation } = useWriteContract();
+  const { writeContractAsync: ackWrite, ...ackMutation } = useWriteContract();
+  const { writeContractAsync: resolveWrite, ...resolveMutation } = useWriteContract();
 
   const submitDispute = useCallback(async (
     offerId: bigint,
@@ -23,43 +23,43 @@ export function useDisputes() {
     expectedPayload: `0x${string}`,
     disputeDeposit: bigint
   ) => {
-    return submitMutation.writeContractAsync({
+    return submitWrite({
       ...CONTRACT_CONFIG,
       functionName: 'submitDispute',
       args: [offerId, renterSignedRequest, expectedPayload],
       value: disputeDeposit,
     });
-  }, [submitMutation]);
+  }, [submitWrite]);
 
   const submitSignature = useCallback(async (
     disputeId: bigint,
     signature: `0x${string}`
   ) => {
-    return signatureMutation.writeContractAsync({
+    return signatureWrite({
       ...CONTRACT_CONFIG,
       functionName: 'submitSignature',
       args: [disputeId, signature],
     });
-  }, [signatureMutation]);
+  }, [signatureWrite]);
 
   const submitRenterACK = useCallback(async (
     disputeId: bigint,
     renterAck: `0x${string}`
   ) => {
-    return ackMutation.writeContractAsync({
+    return ackWrite({
       ...CONTRACT_CONFIG,
       functionName: 'submitRenterACK',
       args: [disputeId, renterAck],
     });
-  }, [ackMutation]);
+  }, [ackWrite]);
 
   const resolveDisputeTimeout = useCallback(async (disputeId: bigint) => {
-    return resolveMutation.writeContractAsync({
+    return resolveWrite({
       ...CONTRACT_CONFIG,
       functionName: 'resolveDisputeTimeout',
       args: [disputeId],
     });
-  }, [resolveMutation]);
+  }, [resolveWrite]);
 
   const { data: nextDisputeIdData } = useReadContract({
     ...CONTRACT_CONFIG,
