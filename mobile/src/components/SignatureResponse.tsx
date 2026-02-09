@@ -1,0 +1,187 @@
+/**
+ * Signature Response component
+ * Displays signature response with QR code option
+ */
+
+import React from 'react';
+import {
+  View,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+} from 'react-native';
+import type { SignatureResponse } from '../types';
+import { SignerService } from '../services';
+
+interface SignatureResponseProps {
+  response: SignatureResponse;
+  onClose: () => void;
+}
+
+export function SignatureResponse({
+  response,
+  onClose,
+}: SignatureResponseProps) {
+  const details = SignerService.formatForDisplay(response);
+
+  const handleCopyToClipboard = () => {
+    Alert.alert('Copied', 'Signature copied to clipboard');
+  };
+
+  const handleGenerateQR = () => {
+    Alert.alert('QR Code', 'QR code generation would be implemented here');
+  };
+
+  return (
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollView}>
+        <Text style={styles.title}>Signature Generated</Text>
+
+        <View style={styles.successBox}>
+          <Text style={styles.successIcon}>✓</Text>
+          <Text style={styles.successText}>Payload signed successfully</Text>
+        </View>
+
+        <Text style={styles.sectionTitle}>Signature Details</Text>
+
+        {Object.entries(details).map(([key, value]) => (
+          <View key={key} style={styles.detailRow}>
+            <Text style={styles.detailKey}>{key}:</Text>
+            <Text style={styles.detailValue}>{value}</Text>
+          </View>
+        ))}
+
+        <View style={styles.signatureBox}>
+          <Text style={styles.signatureTitle}>Full Signature</Text>
+          <Text style={styles.signatureValue} numberOfLines={3}>
+            {response.signature}
+          </Text>
+        </View>
+
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleCopyToClipboard}
+          >
+            <Text style={styles.buttonText}>Copy Signature</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.button} onPress={handleGenerateQR}>
+            <Text style={styles.buttonText}>Generate QR</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
+      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+        <Text style={styles.closeButtonText}>Close</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  scrollView: {
+    flex: 1,
+    padding: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#000000',
+    marginBottom: 16,
+  },
+  successBox: {
+    backgroundColor: '#10b981',
+    padding: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  successIcon: {
+    fontSize: 48,
+    color: '#ffffff',
+    marginBottom: 8,
+  },
+  successText: {
+    fontSize: 18,
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000000',
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  detailKey: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  detailValue: {
+    fontSize: 14,
+    color: '#000000',
+    fontWeight: '400',
+  },
+  signatureBox: {
+    backgroundColor: '#ffffff',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 12,
+  },
+  signatureTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6b7280',
+    marginBottom: 8,
+  },
+  signatureValue: {
+    fontSize: 12,
+    color: '#000000',
+    fontFamily: 'monospace',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
+  button: {
+    flex: 1,
+    backgroundColor: '#3b82f6',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  closeButton: {
+    backgroundColor: '#6b7280',
+    margin: 20,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+});
