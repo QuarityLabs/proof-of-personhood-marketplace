@@ -4,8 +4,8 @@
  */
 
 import { ethers } from 'ethers';
-import type { SignRequest, SignRequestQR } from '../types';
-import { SIGN_REQUEST_EXPIRY_MS, MAX_QR_DATA_SIZE } from '../types';
+import type { SignRequest, SignRequestQR } from '@/types';
+import { SIGN_REQUEST_EXPIRY_MS, MAX_QR_DATA_SIZE } from '@/types';
 
 /**
  * Parse and validate sign request from QR code data
@@ -24,7 +24,18 @@ export class SignRequestParser {
     }
 
     try {
-      const parsed = JSON.parse(data) as SignRequestQR;
+      const parsed = JSON.parse(data, (_key, value) => {
+        if (typeof value === 'string' && value.startsWith('BIGINT:')) {
+          return BigInt(value.slice(7));
+        }
+        if (
+          typeof value === 'number' &&
+          ['offerId', 'requestId', 'timestamp'].includes(_key)
+        ) {
+          return BigInt(value);
+        }
+        return value;
+      }) as SignRequestQR;
 
       if (parsed.type !== 'SIGN_REQUEST') {
         throw new Error('Invalid QR code type');
@@ -46,15 +57,15 @@ export class SignRequestParser {
    * Validate sign request structure and values
    */
   static validateSignRequest(request: SignRequest): SignRequest {
-    if (!request.offerId) {
+    if (request.offerId === undefined || request.offerId === null) {
       throw new Error('Missing offer ID');
     }
 
-    if (!request.requestId) {
+    if (request.requestId === undefined || request.requestId === null) {
       throw new Error('Missing request ID');
     }
 
-    if (!request.timestamp) {
+    if (request.timestamp === undefined || request.timestamp === null) {
       throw new Error('Missing timestamp');
     }
 

@@ -7,9 +7,9 @@ import type {
   SignRequest,
   SignatureResponse,
   SignatureResponseQR,
-} from '../types';
-import { WalletService } from './WalletService';
-import { toEthereumAddress } from '../types';
+} from '@/types';
+import { WalletService } from '@/services/WalletService';
+import { toEthereumAddress } from '@/types';
 
 /**
  * Signer service for signing payloads
@@ -18,13 +18,15 @@ export class SignerService {
   /**
    * Sign a sign request and return signature response
    */
-  static async signRequest(request: SignRequest): Promise<SignatureResponse> {
+  static async signRequest(
+    request: SignRequest,
+    password: string
+  ): Promise<SignatureResponse> {
     try {
-      const privateKey = await WalletService.getPrivateKey();
+      const privateKey = await WalletService.getPrivateKey(password);
       const wallet = new ethers.Wallet(privateKey);
 
-      const payloadHash = ethers.keccak256(request.expectedPayload);
-      const signature = await wallet.signMessage(ethers.getBytes(payloadHash));
+      const signature = await wallet.signMessage(request.expectedPayload);
 
       const lenderAddress = toEthereumAddress(wallet.address);
       const response: SignatureResponse = {
@@ -55,11 +57,7 @@ export class SignerService {
     signerAddress: string
   ): boolean {
     try {
-      const payloadHash = ethers.keccak256(payload);
-      const recoveredAddress = ethers.recoverAddress(
-        ethers.getBytes(payloadHash),
-        signature
-      );
+      const recoveredAddress = ethers.verifyMessage(payload, signature);
       return recoveredAddress.toLowerCase() === signerAddress.toLowerCase();
     } catch (error) {
       return false;
@@ -74,7 +72,12 @@ export class SignerService {
       type: 'SIGNATURE_RESPONSE',
       data: response,
     };
-    return JSON.stringify(qrData);
+    return JSON.stringify(qrData, (_key, value) => {
+      if (typeof value === 'bigint') {
+        return `BIGINT:${value.toString()}`;
+      }
+      return value;
+    });
   }
 
   /**
@@ -82,7 +85,12 @@ export class SignerService {
    */
   static parseSignatureResponseQR(data: string): SignatureResponse {
     try {
-      const parsed = JSON.parse(data) as SignatureResponseQR;
+      const parsed = JSON.parse(data, (_key, value) => {
+        if (typeof value === 'string' && value.startsWith('BIGINT:')) {
+          return BigInt(value.slice(7));
+        }
+        return value;
+      }) as SignatureResponseQR;
 
       if (parsed.type !== 'SIGNATURE_RESPONSE') {
         throw new Error('Invalid QR code type');
@@ -104,11 +112,11 @@ export class SignerService {
    * Validate signature response structure
    */
   static validateSignatureResponse(response: SignatureResponse): boolean {
-    if (!response.offerId) {
+    if (response.offerId === undefined || response.offerId === null) {
       return false;
     }
 
-    if (!response.requestId) {
+    if (response.requestId === undefined || response.requestId === null) {
       return false;
     }
 
@@ -120,7 +128,7 @@ export class SignerService {
       return false;
     }
 
-    if (!response.timestamp) {
+    if (response.timestamp === undefined || response.timestamp === null) {
       return false;
     }
 
