@@ -2,6 +2,6 @@
  * Export all services
  */
 
-export { WalletService } from './WalletService';
-export { SignRequestParser } from './SignRequestParser';
-export { SignerService } from './SignerService';
+export { WalletService } from '@/services/WalletService';
+export { SignRequestParser } from '@/services/SignRequestParser';
+export { SignerService } from '@/services/SignerService';

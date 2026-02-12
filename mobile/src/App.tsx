@@ -8,7 +8,7 @@ import {
   WalletScreen,
   PortfolioScreen,
   SignRequestScreen,
-} from './screens';
+} from '@/screens';
 
 type RootStackParamList = {
   Home: undefined;

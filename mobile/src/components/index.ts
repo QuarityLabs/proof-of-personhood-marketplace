@@ -2,6 +2,6 @@
  * Export all components
  */
 
-export { QRScanner } from './QRScanner';
-export { SignRequestDetail } from './SignRequestDetail';
-export { SignatureResponse } from './SignatureResponse';
+export { QRScanner } from '@/components/QRScanner';
+export { SignRequestDetail } from '@/components/SignRequestDetail';
+export { SignatureResponse } from '@/components/SignatureResponse';
