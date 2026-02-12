@@ -6,8 +6,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { RNCamera, BarCodeReadEvent } from 'react-native-camera';
-import type { SignRequest } from '../types';
-import { SignRequestParser } from '../services';
+import type { SignRequest } from '@/types';
+import { SignRequestParser } from '@/services';
 
 interface QRScannerProps {
   onScanComplete: (request: SignRequest) => void;
@@ -48,6 +48,7 @@ export function QRScanner({
     } catch (error) {
       const scanError =
         error instanceof Error ? error : new Error('Failed to parse QR code');
+      setLastScan(null);
       onError(scanError);
       setIsScanning(true);
     }

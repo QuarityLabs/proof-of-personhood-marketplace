@@ -11,8 +11,8 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import type { SignRequest } from '../types';
-import { SignRequestParser } from '../services';
+import type { SignRequest } from '@/types';
+import { SignRequestParser } from '@/services';
 
 interface SignRequestDetailProps {
   request: SignRequest;
@@ -34,6 +34,8 @@ export function SignRequestDetail({
   const signatureValid = hasSignature
     ? SignRequestParser.verifyRenterSignature(request)
     : false;
+
+  const canSign = isValid && signatureValid;
 
   return (
     <View style={styles.container}>
@@ -101,10 +103,10 @@ export function SignRequestDetail({
           style={[
             styles.button,
             styles.confirmButton,
-            !isValid && styles.buttonDisabled,
+            !canSign && styles.buttonDisabled,
           ]}
           onPress={onConfirm}
-          disabled={!isValid}
+          disabled={!canSign}
         >
           <Text style={styles.confirmButtonText}>Sign</Text>
         </TouchableOpacity>
