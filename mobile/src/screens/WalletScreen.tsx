@@ -19,8 +19,8 @@ import type {
   WalletInfo,
   CreateWalletParams,
   ImportWalletParams,
-} from '../types';
-import { WalletService } from '../services';
+} from '@/types';
+import { WalletService } from '@/services';
 
 type RootStackParamList = {
   Home: undefined;
@@ -308,6 +308,9 @@ export function WalletScreen() {
               style={styles.input}
               placeholder="Private Key (0x...)"
               value={importForm.privateKey}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
               onChangeText={(text) =>
                 setImportForm({ ...importForm, privateKey: text })
               }

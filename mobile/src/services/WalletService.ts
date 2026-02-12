@@ -9,10 +9,10 @@ import type {
   WalletInfo,
   CreateWalletParams,
   ImportWalletParams,
-} from '../types';
+} from '@/types';
 
 const WALLET_SERVICE = 'proof-of-personhood-wallet';
-const PRIVATE_KEY_KEY = 'private-key';
+const ENCRYPTED_WALLET_KEY = 'encrypted-wallet';
 const HAS_BACKUP_KEY = 'has-backup';
 
 /**
@@ -45,8 +45,17 @@ export class WalletService {
         return null;
       }
 
-      const privateKey = credentials.password;
-      const wallet = new ethers.Wallet(privateKey);
+      // Try to extract address from encrypted wallet JSON
+      const encryptedWallet = credentials.password;
+      let address: string;
+      try {
+        const walletData = JSON.parse(encryptedWallet);
+        address = walletData.address;
+      } catch {
+        // Fallback: might be legacy unencrypted private key
+        const wallet = new ethers.Wallet(encryptedWallet);
+        address = wallet.address;
+      }
 
       const hasBackupData = await Keychain.getGenericPassword({
         service: `${WALLET_SERVICE}-backup`,
@@ -54,7 +63,7 @@ export class WalletService {
       const hasBackup = hasBackupData !== false;
 
       return {
-        address: wallet.address as `0x${string}`,
+        address: address as `0x${string}`,
         hasBackup,
       };
     } catch (error) {
@@ -71,15 +80,14 @@ export class WalletService {
    */
   static async createWallet(params: CreateWalletParams): Promise<WalletInfo> {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password: _password } = params;
+      const { password } = params;
 
       const wallet = ethers.Wallet.createRandom();
-      const privateKey = wallet.privateKey;
+      const encryptedWallet = await wallet.encrypt(password);
 
       await Keychain.setGenericPassword(
-        `${WALLET_SERVICE}-${PRIVATE_KEY_KEY}`,
-        privateKey,
+        `${WALLET_SERVICE}-${ENCRYPTED_WALLET_KEY}`,
+        encryptedWallet,
         { service: WALLET_SERVICE }
       );
 
@@ -101,14 +109,14 @@ export class WalletService {
    */
   static async importWallet(params: ImportWalletParams): Promise<WalletInfo> {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { privateKey, password: _password } = params;
+      const { privateKey, password } = params;
 
       const wallet = new ethers.Wallet(privateKey);
+      const encryptedWallet = await wallet.encrypt(password);
 
       await Keychain.setGenericPassword(
-        `${WALLET_SERVICE}-${PRIVATE_KEY_KEY}`,
-        privateKey,
+        `${WALLET_SERVICE}-${ENCRYPTED_WALLET_KEY}`,
+        encryptedWallet,
         { service: WALLET_SERVICE }
       );
 
@@ -126,9 +134,9 @@ export class WalletService {
   }
 
   /**
-   * Get the wallet private key for signing
+   * Get the wallet private key for signing (decrypts with password)
    */
-  static async getPrivateKey(): Promise<string> {
+  static async getPrivateKey(password: string): Promise<string> {
     try {
       const credentials = await Keychain.getGenericPassword({
         service: WALLET_SERVICE,
@@ -137,7 +145,13 @@ export class WalletService {
         throw new Error('Wallet not found');
       }
 
-      return credentials.password;
+      const encryptedWallet = credentials.password;
+      const wallet = await ethers.Wallet.fromEncryptedJson(
+        encryptedWallet,
+        password
+      );
+
+      return wallet.privateKey;
     } catch (error) {
       throw new Error(
         `Failed to get private key: ${
@@ -150,9 +164,9 @@ export class WalletService {
   /**
    * Sign a message with the wallet's private key
    */
-  static async signMessage(message: string): Promise<string> {
+  static async signMessage(message: string, password: string): Promise<string> {
     try {
-      const privateKey = await this.getPrivateKey();
+      const privateKey = await this.getPrivateKey(password);
       const wallet = new ethers.Wallet(privateKey);
       const signature = await wallet.signMessage(message);
       return signature;
@@ -168,9 +182,9 @@ export class WalletService {
   /**
    * Sign a hash with the wallet's private key
    */
-  static async signHash(hash: string): Promise<string> {
+  static async signHash(hash: string, password: string): Promise<string> {
     try {
-      const privateKey = await this.getPrivateKey();
+      const privateKey = await this.getPrivateKey(password);
       const wallet = new ethers.Wallet(privateKey);
       const signature = await wallet.signMessage(ethers.getBytes(hash));
       return signature;
