@@ -15,9 +15,9 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { PortfolioItem } from '../types';
-import { OfferStatus } from '../types';
-import { WalletService } from '../services';
+import type { PortfolioItem } from '@/types';
+import { OfferStatus } from '@/types';
+import { WalletService } from '@/services';
 
 type RootStackParamList = {
   Home: undefined;
@@ -153,8 +153,10 @@ export function PortfolioScreen() {
   };
 
   const formatEarnings = (earnings: bigint): string => {
-    const ethersValue = Number(earnings) / 1e18;
-    return `${ethersValue.toFixed(4)} ETH`;
+    const weiPerEth = 1_000_000_000_000_000_000n;
+    const whole = earnings / weiPerEth;
+    const frac = ((earnings % weiPerEth) * 10_000n) / weiPerEth;
+    return `${whole}.${frac.toString().padStart(4, '0')} ETH`;
   };
 
   if (isLoading) {

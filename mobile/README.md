@@ -14,7 +14,7 @@ React Native mobile application for Proof of Personhood marketplace - Secure Sig
 
 ## Architecture
 
-```
+```text
 src/
 ├── components/    # Reusable UI components (QRScanner, SignRequestDetail, SignatureResponse)
 ├── screens/       # Screen components (Home, Wallet, Portfolio, SignRequest)
@@ -81,7 +81,7 @@ npm test
 - QR code scanner for sign requests
 - Parse and validate off-chain sign requests
 - Verify renter signature on requests
-- Request expiry checking (5 minute validity)
+- Request expiry checking (5-minute validity)
 - Sign payloads with wallet's private key
 - Generate signature response for renter
 

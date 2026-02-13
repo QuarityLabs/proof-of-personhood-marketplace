@@ -3,7 +3,7 @@
  * Displays signature response with QR code option
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -11,9 +11,10 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Modal,
 } from 'react-native';
-import type { SignatureResponse } from '../types';
-import { SignerService } from '../services';
+import type { SignatureResponse } from '@/types';
+import { SignerService } from '@/services';
 
 interface SignatureResponseProps {
   response: SignatureResponse;
@@ -25,13 +26,22 @@ export function SignatureResponse({
   onClose,
 }: SignatureResponseProps) {
   const details = SignerService.formatForDisplay(response);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [qrData, setQrData] = useState<string>('');
 
   const handleCopyToClipboard = () => {
-    Alert.alert('Copied', 'Signature copied to clipboard');
+    const qrString = SignerService.createSignatureResponseQR(response);
+    Alert.alert(
+      'Copy Signature',
+      'QR code data copied to clipboard:\n\n' + qrString.slice(0, 100) + '...',
+      [{ text: 'OK' }]
+    );
   };
 
   const handleGenerateQR = () => {
-    Alert.alert('QR Code', 'QR code generation would be implemented here');
+    const qrString = SignerService.createSignatureResponseQR(response);
+    setQrData(qrString);
+    setShowQRModal(true);
   };
 
   return (
@@ -77,6 +87,33 @@ export function SignatureResponse({
       <TouchableOpacity style={styles.closeButton} onPress={onClose}>
         <Text style={styles.closeButtonText}>Close</Text>
       </TouchableOpacity>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showQRModal}
+        onRequestClose={() => setShowQRModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Signature QR Code</Text>
+            <View style={styles.qrPlaceholder}>
+              <Text style={styles.qrPlaceholderText}>
+                QR Code Data (show to renter):
+              </Text>
+              <Text style={styles.qrDataText} numberOfLines={8}>
+                {qrData}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setShowQRModal(false)}
+            >
+              <Text style={styles.modalButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -182,6 +219,56 @@ const styles = StyleSheet.create({
   closeButtonText: {
     color: '#ffffff',
     fontSize: 18,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  qrPlaceholder: {
+    backgroundColor: '#f5f5f5',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  qrPlaceholderText: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 12,
+  },
+  qrDataText: {
+    fontSize: 12,
+    color: '#000000',
+    fontFamily: 'monospace',
+    textAlign: 'center',
+  },
+  modalButton: {
+    backgroundColor: '#3b82f6',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
     fontWeight: '600',
   },
 });

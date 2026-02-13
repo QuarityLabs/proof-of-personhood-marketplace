@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   Text,
   TouchableOpacity,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,9 +20,9 @@ import type {
   SignRequest,
   SignRequestState,
   SignatureResponse as SignatureResponseType,
-} from '../types';
-import { SignerService } from '../services';
-import { QRScanner, SignRequestDetail, SignatureResponse } from '../components';
+} from '@/types';
+import { SignerService } from '@/services';
+import { QRScanner, SignRequestDetail, SignatureResponse } from '@/components';
 
 type RootStackParamList = {
   Home: undefined;
@@ -39,6 +41,8 @@ export function SignRequestScreen(): React.JSX.Element {
 
   const [state, setState] = useState<SignRequestState>({ status: 'idle' });
   const [_error, setError] = useState<Error | null>(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [password, setPassword] = useState('');
 
   const handleScanComplete = (request: SignRequest) => {
     setState({ status: 'parsed', request });
@@ -54,15 +58,25 @@ export function SignRequestScreen(): React.JSX.Element {
     navigation.navigate('Home');
   };
 
-  const handleConfirm = async () => {
+  const handleConfirm = () => {
     if (state.status !== 'parsed') {
       return;
     }
+    setShowPasswordModal(true);
+  };
+
+  const handlePasswordSubmit = async () => {
+    if (state.status !== 'parsed' || !password) {
+      return;
+    }
+
+    setShowPasswordModal(false);
 
     try {
       setState({ status: 'signing' });
 
-      const response = await SignerService.signRequest(state.request);
+      const response = await SignerService.signRequest(state.request, password);
+      setPassword('');
       const signatureResponseType: SignatureResponseType =
         response as SignatureResponseType;
 
@@ -75,6 +89,11 @@ export function SignRequestScreen(): React.JSX.Element {
       setState({ status: 'parsed', request: state.request });
       Alert.alert('Error', `Failed to sign: ${signError.message}`);
     }
+  };
+
+  const handlePasswordCancel = () => {
+    setShowPasswordModal(false);
+    setPassword('');
   };
 
   const handleDeny = () => {
@@ -140,6 +159,42 @@ export function SignRequestScreen(): React.JSX.Element {
           </TouchableOpacity>
         </View>
       )}
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showPasswordModal}
+        onRequestClose={handlePasswordCancel}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Enter Wallet Password</Text>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Password"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+              autoFocus
+            />
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalCancelButton]}
+                onPress={handlePasswordCancel}
+              >
+                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalSubmitButton]}
+                onPress={handlePasswordSubmit}
+                disabled={!password}
+              >
+                <Text style={styles.modalSubmitButtonText}>Sign</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -185,6 +240,64 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   retryButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  passwordInput: {
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    marginBottom: 20,
+    color: '#000000',
+  },
+  modalButtonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalCancelButton: {
+    backgroundColor: '#e5e7eb',
+  },
+  modalCancelButtonText: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalSubmitButton: {
+    backgroundColor: '#10b981',
+  },
+  modalSubmitButtonText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
