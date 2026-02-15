@@ -143,7 +143,6 @@ export interface PortfolioItem {
 
 export type SignRequestState =
   | { status: 'idle' }
-  | { status: 'scanning' }
   | { status: 'parsed'; request: SignRequest }
   | { status: 'signing' }
   | { status: 'success'; response: SignatureResponse }

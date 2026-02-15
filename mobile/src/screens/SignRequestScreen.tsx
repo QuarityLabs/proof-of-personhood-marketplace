@@ -85,6 +85,7 @@ export function SignRequestScreen(): React.JSX.Element {
     } catch (err) {
       const signError =
         err instanceof Error ? err : new Error('Failed to sign request');
+      setPassword('');
       setError(signError);
       setState({ status: 'parsed', request: state.request });
       Alert.alert('Error', `Failed to sign: ${signError.message}`);
@@ -119,13 +120,6 @@ export function SignRequestScreen(): React.JSX.Element {
           onError={handleScanError}
           onCancel={handleScanCancel}
         />
-      )}
-
-      {state.status === 'scanning' && (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#3b82f6" />
-          <Text style={styles.statusText}>Scanning QR code...</Text>
-        </View>
       )}
 
       {state.status === 'parsed' && (
