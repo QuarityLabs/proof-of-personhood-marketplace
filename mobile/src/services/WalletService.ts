@@ -1,0 +1,238 @@
+/**
+ * Wallet service for secure key storage and management
+ * Uses react-native-keychain for secure storage
+ */
+
+import * as Keychain from 'react-native-keychain';
+import { ethers } from 'ethers';
+import type {
+  WalletInfo,
+  CreateWalletParams,
+  ImportWalletParams,
+} from '@/types';
+
+const WALLET_SERVICE = 'proof-of-personhood-wallet';
+const ENCRYPTED_WALLET_KEY = 'encrypted-wallet';
+const HAS_BACKUP_KEY = 'has-backup';
+
+/**
+ * Wallet service for managing Ethereum wallets securely
+ */
+export class WalletService {
+  /**
+   * Check if a wallet exists
+   */
+  static async hasWallet(): Promise<boolean> {
+    try {
+      const credentials = await Keychain.getGenericPassword({
+        service: WALLET_SERVICE,
+      });
+      return credentials !== false;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Get wallet information
+   */
+  static async getWalletInfo(): Promise<WalletInfo | null> {
+    try {
+      const credentials = await Keychain.getGenericPassword({
+        service: WALLET_SERVICE,
+      });
+      if (!credentials) {
+        return null;
+      }
+
+      // Try to extract address from encrypted wallet JSON
+      const encryptedWallet = credentials.password;
+      let address: string;
+      try {
+        const walletData = JSON.parse(encryptedWallet);
+        // Normalize address: ensure 0x prefix and checksum format
+        const rawAddress = walletData.address;
+        address = ethers.getAddress(
+          rawAddress.startsWith('0x') ? rawAddress : `0x${rawAddress}`
+        );
+      } catch {
+        // Fallback: might be legacy unencrypted private key
+        const wallet = new ethers.Wallet(encryptedWallet);
+        address = wallet.address;
+      }
+
+      const hasBackupData = await Keychain.getGenericPassword({
+        service: `${WALLET_SERVICE}-backup`,
+      });
+      const hasBackup = hasBackupData !== false;
+
+      return {
+        address: address as `0x${string}`,
+        hasBackup,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to get wallet info: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  }
+
+  /**
+   * Create a new wallet with the given password
+   */
+  static async createWallet(params: CreateWalletParams): Promise<WalletInfo> {
+    try {
+      const { password } = params;
+
+      const wallet = ethers.Wallet.createRandom();
+      const encryptedWallet = await wallet.encrypt(password);
+
+      await Keychain.setGenericPassword(
+        `${WALLET_SERVICE}-${ENCRYPTED_WALLET_KEY}`,
+        encryptedWallet,
+        { service: WALLET_SERVICE }
+      );
+
+      return {
+        address: wallet.address as `0x${string}`,
+        hasBackup: false,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to create wallet: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  }
+
+  /**
+   * Import a wallet from private key with the given password
+   */
+  static async importWallet(params: ImportWalletParams): Promise<WalletInfo> {
+    try {
+      const { privateKey, password } = params;
+
+      const wallet = new ethers.Wallet(privateKey);
+      const encryptedWallet = await wallet.encrypt(password);
+
+      await Keychain.setGenericPassword(
+        `${WALLET_SERVICE}-${ENCRYPTED_WALLET_KEY}`,
+        encryptedWallet,
+        { service: WALLET_SERVICE }
+      );
+
+      return {
+        address: wallet.address as `0x${string}`,
+        hasBackup: true,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to import wallet: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  }
+
+  /**
+   * Get the wallet private key for signing (decrypts with password)
+   */
+  static async getPrivateKey(password: string): Promise<string> {
+    try {
+      const credentials = await Keychain.getGenericPassword({
+        service: WALLET_SERVICE,
+      });
+      if (!credentials) {
+        throw new Error('Wallet not found');
+      }
+
+      const encryptedWallet = credentials.password;
+      const wallet = await ethers.Wallet.fromEncryptedJson(
+        encryptedWallet,
+        password
+      );
+
+      return wallet.privateKey;
+    } catch (error) {
+      throw new Error(
+        `Failed to get private key: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  }
+
+  /**
+   * Sign a message with the wallet's private key
+   */
+  static async signMessage(message: string, password: string): Promise<string> {
+    try {
+      const privateKey = await this.getPrivateKey(password);
+      const wallet = new ethers.Wallet(privateKey);
+      const signature = await wallet.signMessage(message);
+      return signature;
+    } catch (error) {
+      throw new Error(
+        `Failed to sign message: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  }
+
+  /**
+   * Sign a hash with the wallet's private key
+   */
+  static async signHash(hash: string, password: string): Promise<string> {
+    try {
+      const privateKey = await this.getPrivateKey(password);
+      const wallet = new ethers.Wallet(privateKey);
+      const signature = wallet.signingKey.sign(hash);
+      return signature.serialized;
+    } catch (error) {
+      throw new Error(
+        `Failed to sign hash: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  }
+
+  /**
+   * Mark wallet as backed up
+   */
+  static async markBackupComplete(): Promise<void> {
+    try {
+      await Keychain.setGenericPassword(HAS_BACKUP_KEY, 'true', {
+        service: `${WALLET_SERVICE}-backup`,
+      });
+    } catch (error) {
+      throw new Error(
+        `Failed to mark backup complete: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  }
+
+  /**
+   * Clear all wallet data
+   */
+  static async clearWallet(): Promise<void> {
+    try {
+      await Keychain.resetGenericPassword({ service: WALLET_SERVICE });
+      await Keychain.resetGenericPassword({
+        service: `${WALLET_SERVICE}-backup`,
+      });
+    } catch (error) {
+      throw new Error(
+        `Failed to clear wallet: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  }
+}

@@ -13,8 +13,17 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@react-navigation/native": "^7.1.28",
+    "@react-navigation/native-stack": "^7.12.0",
+    "@react-navigation/stack": "^7.7.1",
+    "ethers": "^6.16.0",
     "react": "18.2.0",
-    "react-native": "0.73.0"
+    "react-native": "0.73.0",
+    "react-native-camera": "^4.2.1",
+    "react-native-gesture-handler": "^2.30.0",
+    "react-native-keychain": "^10.0.0",
+    "react-native-safe-area-context": "^5.6.2",
+    "react-native-screens": "^4.23.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
