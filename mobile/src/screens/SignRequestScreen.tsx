@@ -51,7 +51,7 @@ export function SignRequestScreen(): React.JSX.Element {
 
   const handleScanError = (scanError: Error) => {
     setError(scanError);
-    setState({ status: 'idle' });
+    setState({ status: 'error', error: scanError });
   };
 
   const handleScanCancel = () => {
@@ -113,7 +113,7 @@ export function SignRequestScreen(): React.JSX.Element {
 
   return (
     <View style={styles.container}>
-      {state.status === 'idle' && (
+      {state.status === 'idle' && !_error && (
         <QRScanner
           onScanComplete={handleScanComplete}
           onError={handleScanError}

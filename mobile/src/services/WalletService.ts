@@ -50,7 +50,11 @@ export class WalletService {
       let address: string;
       try {
         const walletData = JSON.parse(encryptedWallet);
-        address = walletData.address;
+        // Normalize address: ensure 0x prefix and checksum format
+        const rawAddress = walletData.address;
+        address = ethers.getAddress(
+          rawAddress.startsWith('0x') ? rawAddress : `0x${rawAddress}`
+        );
       } catch {
         // Fallback: might be legacy unencrypted private key
         const wallet = new ethers.Wallet(encryptedWallet);
@@ -186,8 +190,8 @@ export class WalletService {
     try {
       const privateKey = await this.getPrivateKey(password);
       const wallet = new ethers.Wallet(privateKey);
-      const signature = await wallet.signMessage(ethers.getBytes(hash));
-      return signature;
+      const signature = wallet.signingKey.sign(hash);
+      return signature.serialized;
     } catch (error) {
       throw new Error(
         `Failed to sign hash: ${
