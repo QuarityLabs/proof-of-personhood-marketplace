@@ -213,15 +213,15 @@ Both Web and Mobile workspaces are now fully implemented. See Milestone 2 sectio
 
 ---
 
-## Milestone 2: Mobile Signer App ✅ COMPLETE
+## Milestone 2: Mobile Signer App ⚠️ Partial — tests incomplete
 
-**Status:** Implementation complete (2026-02-09)  
+**Status:** Implementation complete (2026-02-09), tests pending  
 **PR:** #18  
 **Goal:** Full mobile signer app with wallet integration and off-chain communication support for Protocol v2.0
 
 ### Implementation Summary
 
-Successfully implemented the Mobile Signer App with full wallet integration and off-chain communication support. All hooks, components, screens, and tests are functional with TypeScript strict mode compliance.
+Successfully implemented the Mobile Signer App with full wallet integration and off-chain communication support. All hooks, components, and screens are functional with TypeScript strict mode compliance. Tests not created due to BigInt serialization issues (see Section 2.6).
 
 ### 2.1 Wallet Integration ✅
 
@@ -400,7 +400,7 @@ Successfully implemented the Mobile Signer App with full wallet integration and 
 | m1-task-5 | 1 | Comprehensive Test Suite | ✅ Complete | #12 |
 | m1-task-6 | 1 | Deployment Script Update | ✅ Complete | #8 |
 | web-impl | 2 | Web Marketplace UI | ✅ Complete | #17 |
-| mobile-impl | 2 | Mobile Signer App | ✅ Complete | #18 |
+| mobile-impl | 2 | Mobile Signer App | ⚠️ Partial — tests incomplete | #18 |
 
 ---
 
